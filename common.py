@@ -11,6 +11,31 @@ from cryptography.hazmat.primitives.asymmetric import padding
 #def Extract_Bytes(bytes, start, end):
 #    return extracted_bytes
 
+# Padding for Symmetric Encryption
+def paddingForSymmEncryption(inClearString, blockSize):
+    paddingBytesNeeded = blockSize - len(inClearString) % blockSize
+    if paddingBytesNeeded < 2:
+        paddingBytesNeeded += blockSize
+    paddedStringSize = len(inClearString) + paddingBytesNeeded
+    paddedString = inClearString.zfill(paddedStringSize)
+    paddedStringList = list(paddedString)
+    if paddingBytesNeeded < 10:
+        paddedStringList[1] = str(paddingBytesNeeded)
+    else:
+        paddingBytesNeededList = list(str(paddingBytesNeeded))
+        paddedStringList[0] = paddingBytesNeededList[0]
+        paddedStringList[1] = paddingBytesNeededList[1]
+    paddedString = "".join(paddedStringList)
+    return paddedString
+
+# Remove Padding from AES decrypted data
+def removePadding(paddedString):
+    paddedStringList = list(paddedString[0:2])
+    paddedBytes = "".join(paddedStringList)
+    paddedBytes = int(paddedBytes)
+    originalPlainText = paddedString[paddedBytes:]
+    return originalPlainText
+
 # Asymmetric Encryption
 def Asymmetric_Encrypt(Pub_Key, Clear_Text):
    serializedPubKey = serialization.load_pem_public_key(Pub_Key, backend=default_backend())
@@ -50,11 +75,13 @@ def Asymmetric_Decrypt(Pri_Key, Ciph_Text):
 
 # Symmetric Encryption
 def Symmetric_Encrypt(Clear_Text, AES_Key):
+   blockSize = 16
+   paddedString = paddingForSymmEncryption(Clear_Text, blockSize)
    backend = default_backend()
    iv = os.urandom(16)
    cipher = Cipher(algorithms.AES(AES_Key), modes.CBC(iv), backend=backend)
    encryptor = cipher.encryptor()
-   Ciph_Text = encryptor.update(Clear_Text) + encryptor.finalize()
+   Ciph_Text = encryptor.update(paddedString) + encryptor.finalize()
    return Ciph_Text, iv
 
 # Symmetric Decryption
@@ -62,7 +89,8 @@ def Symmetric_Decrypt(Ciph_Text, AES_Key, IV):
    backend = default_backend()
    cipher = Cipher(algorithms.AES(AES_Key), modes.CBC(IV),backend=backend)
    decryptor = cipher.decryptor()
-   Clear_Text = decryptor.update(Ciph_Text) + decryptor.finalize()
+   paddedClearText = decryptor.update(Ciph_Text) + decryptor.finalize()
+   Clear_Text = removePadding(paddedClearText)
    return Clear_Text
 
 # Calculate HMAC
