@@ -12,12 +12,12 @@ from cryptography.hazmat.primitives.asymmetric import padding
 #    return extracted_bytes
 
 # Padding for Symmetric Encryption
-def paddingForSymmEncryption(inClearString, blockSize):
-    paddingBytesNeeded = blockSize - len(inClearString) % blockSize
+def Padding_For_Symm_Encryption(in_clear_string, block_size):
+    paddingBytesNeeded = block_size - len(in_clear_string) % block_size
     if paddingBytesNeeded < 2:
-        paddingBytesNeeded += blockSize
-    paddedStringSize = len(inClearString) + paddingBytesNeeded
-    paddedString = inClearString.zfill(paddedStringSize)
+        paddingBytesNeeded += block_size
+    paddedStringSize = len(in_clear_string) + paddingBytesNeeded
+    paddedString = in_clear_string.zfill(paddedStringSize)
     paddedStringList = list(paddedString)
     if paddingBytesNeeded < 10:
         paddedStringList[1] = str(paddingBytesNeeded)
@@ -29,68 +29,89 @@ def paddingForSymmEncryption(inClearString, blockSize):
     return paddedString
 
 # Remove Padding from AES decrypted data
-def removePadding(paddedString):
-    paddedStringList = list(paddedString[0:2])
-    paddedBytes = "".join(paddedStringList)
-    paddedBytes = int(paddedBytes)
-    originalPlainText = paddedString[paddedBytes:]
-    return originalPlainText
+def Remove_Padding(padded_string):
+    padded_string_list = list(padded_string[0:2])
+    padded_bytes = "".join(padded_string_list)
+    padded_bytes = int(padded_bytes)
+    original_plain_text = padded_string[padded_bytes:]
+    return original_plain_text
 
 # Asymmetric Encryption
-def Asymmetric_Encrypt(Pub_Key, Clear_Text):
-   serializedPubKey = serialization.load_pem_public_key(Pub_Key, backend=default_backend())
+def Asymmetric_Encrypt(pub_key, clear_text):
+   serializedPubKey = serialization.load_pem_public_key(pub_key, backend=default_backend())
    if isinstance(serializedPubKey, rsa.RSAPublicKey) != True:
        raise RuntimeError ("Invalid Public key file")
-   Ciph_Text = serializedPubKey.encrypt(
-       Clear_Text,padding.OAEP(
+   in_clear_string = serializedPubKey.encrypt(
+       clear_text,padding.OAEP(
            mgf=padding.MGF1(algorithm=hashes.SHA1()),
            algorithm=hashes.SHA1(),
            label=None
        )
    )
-   return Ciph_Text
+   return ciph_text
 
 # Asymmetric Decryption
-def Asymmetric_Decrypt(Pri_Key, Ciph_Text):
-   serializedPrivateKey = serialization.load_pem_private_key(Pri_Key,password=None,backend=default_backend())
+def Asymmetric_Decrypt(pri_key, ciph_text):
+   serializedPrivateKey = serialization.load_pem_private_key(pri_key,password=None,backend=default_backend())
    if isinstance(serializedPrivateKey,rsa.RSAPrivateKey) != True:
        raise RuntimeError ("Invalid Private key file")
-   Clear_Text = serializedPrivateKey.decrypt(
-       Ciph_Text,
+   clear_text = serializedPrivateKey.decrypt(
+       ciph_text,
        padding.OAEP(
            mgf = padding.MGF1(algorithm=hashes.SHA1()),
            algorithm=hashes.SHA1(),
            label=None
        )
    )
-   return Clear_Text
+   return clear_text
 
 # Hash_Signing_PriKey
-#def Get_Signed_Hash(data, Pri_Key):
-#   return Signed_Hash
+def Get_Signed_Hash(data, pri_key):
+    signer = pri_key.signer(
+        Asymmetric_Padding.PSS(
+            mgf=Asymmetric_Padding.MGF1(hashes.SHA256()),
+            salt_length=Asymmetric_Padding.PSS.MAX_LENGTH
+        ),
+        hashes.SHA256()
+    )
+    signer.update(data)
+    return signer.finalize()
 
 # Signature Verification
-#def Verify_Signature(data, Signed_Hash, Pub_Key):
-#   return Boolean (Return True if signatures match, else False)
+def Verify_Signature(data, signed_hash, pub_key):
+    verifier = pub_key.verifier(
+        signed_hash,
+        Asymmetric_Padding.PSS(
+            mgf=Asymmetric_Padding.MGF1(hashes.SHA256()),
+            salt_length=Asymmetric_Padding.PSS.MAX_LENGTH
+        ),
+        hashes.SHA256()
+    )
+    verifier.update(data)
+    try:
+        verifier.verify()
+        return True
+    except:
+        return False
 
 # Symmetric Encryption
-def Symmetric_Encrypt(Clear_Text, AES_Key):
-   blockSize = 16
-   paddedString = paddingForSymmEncryption(Clear_Text, blockSize)
+def Symmetric_Encrypt(clear_text, aes_key):
+   block_size = 16
+   paddedString = Padding_For_Symm_Encryption(clear_text, block_size)
    backend = default_backend()
    iv = os.urandom(16)
-   cipher = Cipher(algorithms.AES(AES_Key), modes.CBC(iv), backend=backend)
+   cipher = Cipher(algorithms.AES(aes_key), modes.CBC(iv), backend=backend)
    encryptor = cipher.encryptor()
-   Ciph_Text = encryptor.update(paddedString) + encryptor.finalize()
-   return Ciph_Text, iv
+   ciph_text = encryptor.update(paddedString) + encryptor.finalize()
+   return ciph_text, iv
 
 # Symmetric Decryption
-def Symmetric_Decrypt(Ciph_Text, AES_Key, IV):
+def Symmetric_Decrypt(ciph_text, aes_key, iv):
    backend = default_backend()
-   cipher = Cipher(algorithms.AES(AES_Key), modes.CBC(IV),backend=backend)
+   cipher = Cipher(algorithms.AES(aes_key), modes.CBC(iv),backend=backend)
    decryptor = cipher.decryptor()
-   paddedClearText = decryptor.update(Ciph_Text) + decryptor.finalize()
-   Clear_Text = removePadding(paddedClearText)
+   paddedClearText = decryptor.update(ciph_text) + decryptor.finalize()
+   Clear_Text = Remove_Padding(paddedClearText)
    return Clear_Text
 
 # Calculate HMAC
