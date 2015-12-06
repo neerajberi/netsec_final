@@ -160,6 +160,11 @@ def Symmetric_Decrypt(ciph_text, aes_key, iv):
    Clear_Text = Remove_Padding(paddedClearText)
    return Clear_Text
 
+def Hash_This(hash_input):
+    digest = hashes.Hash(hashes.SHA256(), backend=default_backend())
+    digest.update(hash_input)
+    return digest.finalize()
+
 # Calculate HMAC
 #def get_HMAC(data, HKey):
 #   return HMAC

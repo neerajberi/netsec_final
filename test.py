@@ -1,5 +1,5 @@
 from os import urandom
-import common
+import common, chatserver
 
 # testing symmetric encryption/decryption
 def Test_Sym(input_string):
@@ -41,8 +41,17 @@ def Test_Challenge():
     else:
         print("challenge/response         : FAILED")
 
+# testing server user verification
+def Test_Verify_User():
+    if chatserver.Verify_User('jack', '4098'):
+        if not chatserver.Verify_User('jack', '4099'):
+            print("user verification          : SUCCESS")
+            return
+    print("user verification          : FAILED")
+
 Test_Sym("1234567890123456789012345678901234567890123456789012345678901234")
 Test_Sym("12345678901234567890123456789012345678901234567")
 Test_Asym("1234567890123456789012345678901234567890123456789012345678901234")
 Test_Asym("12345678901234567890123456789012345678901234567")
+Test_Verify_User()
 Test_Challenge()
