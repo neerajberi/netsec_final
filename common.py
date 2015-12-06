@@ -175,55 +175,36 @@ def Hash_This(hash_input):
 
 # Retrieves the 8-bit message ID associated with a message ref name
 def Get_Message_ID(message_name):
-    Message_ID_List = [
-        [00000000, "login_request"],
-        [00000001, "challenge_to_client"],
-        [00000010, "challenge_response"],
-        [00000011, "challenge_result"],
-        [00000100, "user_login"],
-        [00000101, "login_reply_from_server"],
-        [00000110, "client1_request_to_server_for_client2"],
-        [00000111, "server_sends_info_to_client2"],
-        [00001000, "client2_reply_to_server"],
-        [00001001, "server_reply_to_client1"],
-        [00001010, "A1_to_A2_key_setup"],
-        [00001011, "A2_to_A1_ack"],
-        [00001100, "A1_to_A2_send_message"],
-        [00001101, "A2_to_A1_send_message"],
-        [00001110, "client_to_server_list_update"],
-        [00001111, "server_to_client_user_list"],
-        [00010000, "client_to_server_logout"],
-        [00010001, "client_to_client_logout"]
-    ]
-    for i in range(0,len(Message_ID_List)):
-        if Message_ID_List[i][1] == message_name:
-            message_ID = Message_ID_List[i][0]
+    for i in range(0,len(MESSAGE_ID_LIST)):
+        if MESSAGE_ID_LIST[i][1] == message_name:
+            message_ID = MESSAGE_ID_LIST[i][0]
     return message_ID
 
 # Retrieves the message ref name associated with a 8-bit message ID
 def Get_Message_Name(message_ID):
-    Message_ID_List = [
-        [00000000, "login_request"],
-        [00000001, "challenge_to_client"],
-        [00000010, "challenge_response"],
-        [00000011, "challenge_result"],
-        [00000100, "user_login"],
-        [00000101, "login_reply_from_server"],
-        [00000110, "client1_request_to_server_for_client2"],
-        [00000111, "server_sends_info_to_client2"],
-        [00001000, "client2_reply_to_server"],
-        [00001001, "server_reply_to_client1"],
-        [00001010, "A1_to_A2_key_setup"],
-        [00001011, "A2_to_A1_ack"],
-        [00001100, "A1_to_A2_send_message"],
-        [00001101, "A2_to_A1_send_message"],
-        [00001110, "client_to_server_list_update"],
-        [00001111, "server_to_client_user_list"],
-        [00010000, "client_to_server_logout"],
-        [00010001, "client_to_client_logout"]
-    ]
-    for i in range(0,len(Message_ID_List)):
-        if Message_ID_List[i][0] == message_ID:
-            message_name = Message_ID_List[i][1]
+    message_name = "message_name_not_found"
+    for i in range(0,len(MESSAGE_ID_LIST)):
+        if MESSAGE_ID_LIST[i][0] == message_ID:
+            message_name = MESSAGE_ID_LIST[i][1]
     return message_name
 
+MESSAGE_ID_LIST = [
+    [0b00000000, "login_request"],
+    [0b00000001, "challenge_to_client"],
+    [0b00000010, "challenge_response"],
+    [0b00000011, "challenge_result"],
+    [0b00000100, "user_login"],
+    [0b00000101, "login_reply_from_server"],
+    [0b00000110, "client1_request_to_server_for_client2"],
+    [0b00000111, "server_sends_info_to_client2"],
+    [0b00001000, "client2_reply_to_server"],
+    [0b00001001, "server_reply_to_client1"],
+    [0b00001010, "A1_to_A2_key_setup"],
+    [0b00001011, "A2_to_A1_ack"],
+    [0b00001100, "A1_to_A2_send_message"],
+    [0b00001101, "A2_to_A1_send_message"],
+    [0b00001110, "client_to_server_list_update"],
+    [0b00001111, "server_to_client_user_list"],
+    [0b00010000, "client_to_server_logout"],
+    [0b00010001, "client_to_client_logout"]
+]
