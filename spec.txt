@@ -1,0 +1,115 @@
+LOGIN CHALLENGE EXCHANGE:
+
+[ bit0-7: messageID ]
+A -> B: connection request to login
+
+[ bit0-7: messageID | bit8-107: hash input | bit108-139: hashout(first32) ]
+B -> A: “challenge message”
+
+[ bit0-7: messageID | bit8-35: hash input ]
+A -> B: The value calculated by Client in response to Challenge message
+
+[ bit0-7: messageID ]
+B -> A: Permission to send login credentials encrypted with PubB with a Nonce
+
+
+CLIENT LOGIN USING CREDENTIALS:
+
+message:
+[ bit0-7: messageID | bit8-167: Encrypted hash | bit168-end : Ciph ]
+Ciphertext:
+{bit0-255: Nonce | bit256-511: Publickey Client | bit512-519: login length(ll) in bytes | bit520-(520+(8*ll)-1): login | bit(520+(8*ll)-END: password}PubB
+A -> B: {LOGIN,User,HashPass,N,PubA}PubB
+
+message:
+[ bit0-7: messageID | bit8-167: Encrypted hash | bit168-end : Ciph ]
+ciphertext:
+YES 
+{bit0:yes | bit1-256: Symmetric key | bit257-512:HkeyAB | bit513-768: Nonce+1 }PubA
+NO
+{ bit0:no  | bit1-512: random | bit513-768: Nonce+1 }PubA ]
+B -> A: [{LOGGED-IN,SymAB,HKeyAB,N+1}PubA]PriB
+
+
+CLIENT KEY EXCHANGE:
+
+message:
+[ bit0-7: messageID | bit8-167: HMACA1B | bit168-295: IV | bit296-END: Ciph ]
+ciphertext:
+{ bit0-255: NonceA1 | bit256-END: A2 username }SymA1B 
+A1 ->  B: [{UserA2,NA1B}SymA1B,IV]HMAC
+
+message: 
+[ bit0-7: messageID | bit8-167: HMACA2B | bit168-295: IV | bit296-END: Ciph ]
+ciphertext:
+{ bit0-255: NonceA2 | bit256-287: IPA1 | bit288-303: PortA1 | bit304-559: PubA1 | bit560-END: A1 username }SymA2B
+B  -> A2: [{NA2B,IPA1,PORTA1,PubA1,UserA1}SymA2B,IV]HMACA2B
+
+message:
+[ bit0-7: messageID | bit8-167: HMACA2B | bit168-295: IV | bit296-END: Ciph ]
+ciphertext:
+{ bit0-255: NA2B+1 }SymA2B
+A2 ->  B: [{NA2B+1}SymA2B,IV]HMACA2B
+
+message:
+[ bit0-7: messageID | bit8-167: HMACA1B | bit168-295: IV | bit296-END: Ciph ]
+ciphertext:
+{ bit0-255: NonceA1 | bit256-287: IPA2 | bit288-303: PortA2 | bit304-559: PubA2 | bit560-END: A1 username }SymA2B
+B  -> A1: [UserA2,IPA2,PORTA2,PubA2,NA1B+1}SymA1B,IV]HMAC
+
+message:
+[ bit0-7: messageID | bit8-167: Encrypted Hash Ciph w/ PriA1 | bit168-END: Ciph ]
+Ciphertext:
+{ bit0-255:NonceA1A2 | bit256-511: Symmetric key | bit512-767: HKeyA1A2 }PubA2
+A1 -> A2: [{NA1A2,SymA1A2,HKeyA1A2}PubA2]PriA1
+
+message:
+[ bit0-7: messageID | bit8-167: HMACA1A2 | bit168-295: IV | bit296-END: Ciph ]
+ciphertext:
+{ bit0-255:NonceA1A2+1 }SymA1A2
+A2 -> A1: [{NA1A2+1}SymA1A2,IV]HKeyA1A2
+
+
+SENDING CLIENT TO CLIENT MESSAGES:
+
+message:
+[ bit0-7: messageID | bit8-167: HMACA1A2 | bit168-295: IV | bit296-END: Ciphertext ]
+ciphertext:
+{ bit0-255:NonceA1A2 | bit256-511: Timestamp (ISO8601) | 512-END: Message }SymA1A2
+A1 -> A2: [{MESSAGE,TIMESTAMP,N}SymA1A2,IV]HMAC
+
+message:
+[ bit0-7: messageID | bit8-167: HMACA1A2 | bit168-295: IV | bit296-END: Ciphertext ]
+ciphertext:
+{ bit0-255:NonceA1A2+1 | bit256-511: Timestamp (ISO8601) }SymA1A2
+A2 -> A1: [{TIMESTAMP,N+1}SymA1A2,IV]HMAC
+
+
+LIST UPDATE:
+
+message:
+[ bit0-7: messageID | bit8-167: HMACAB | bit168-295: IV | bit296-END: Ciph ]
+ciphertext:
+{ bit0-255: NonceAB }SymAB
+A -> B  : [{LIST-UPDATE,N}SymAB,IV]HMAC
+
+message:
+[ bit0-7: messageID | bit8-167: HMACAB | bit168-295: IV | bit296-END: Ciph ]
+ciphertext:
+{ bit0-255: NonceAB | bit256-end: List Update Message }SymAB
+B -> A  : [{(Username,Username...),N+1}SymAB,IV]HMAC
+
+
+LOGOUT:
+
+Message:
+[ bit0-7: messageID | bit8-167: HMACA1B | bit168-295: IV | bit296-END: Ciph ]
+Ciphertext:
+{ bit0-255: NonceAB | bit256-end: Username }SymA1B
+A -> B  : [{LOGOUT,Username}SymAB,IV]HMAC
+
+Message:
+[ bit0-7: messageID | bit8-167: HMACAAn | bit168-295: IV | bit296-END: Ciph ]
+Ciphertext:
+{ bit0-255: NonceAAn | bit256-end: Username }SymAAn
+A -> An : [{LOGOUT,Username}SymAAn,IV]HMAC

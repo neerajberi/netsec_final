@@ -1,12 +1,19 @@
 # chat client
 # python 3.5
 
-import sys, socket, getopt, select
+########### NOT WORKING YET ##############
 
-# prompts the user for input
+import sys, socket, getopt, select, thread
+from cryptography.hazmat.backends import default_backend
+from cryptography.hazmat.primitives.asymmetric import rsa
+
 def prompt():
     sys.stdout.write("+> ")
     sys.stdout.flush()
+
+def keep_listening():
+    rawReceivedMessage = sockClient.recv(recv_buf)
+    messageID = rawReceivedMessage[0:7]
 
 if __name__ == "__main__":
     recv_buf = 4096
@@ -27,38 +34,25 @@ if __name__ == "__main__":
             serverport = int(arg)
         elif opt == "-sip":
             serverip = arg
-    s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-    s.settimeout(2)
+    sockClient = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    sockClient.settimeout(2)
 
     # connecting to the server
     try:
-        s.connect((serverip, serverport))
+        sockClient.connect((serverip, serverport))
     except:
         print "Something is wrong with the connection."
         print "Check connection parameters."
         sys.exit()
     print "Connected!"
     prompt()
+    username = input("Enter username:\n")
+    password = input("Enter password:\n")
+    clientPrivateKey = rsa.generate_private_key(
+        public_exponent=65537,
+        key_size=2048,
+        backend=default_backend()
+    )
 
-    while True:
-        sockets = [sys.stdin, s]
+    sockClient.send("00000000")
 
-        # Gets all of the sockets that are ready
-        read_socks,write_socks,error_socks = select.select(sockets,[],[])
-
-        for sock in read_socks:
-            if sock == s:
-                data = sock.recv(recv_buf)
-                if data:
-                    # if we received data, display that data.
-                    sys.stdout.write(data)
-                    prompt()
-                    continue
-                # if we didnt receive data, we were disconnected
-                print "\nDisconnected!"
-                sys.exit()
-            else:
-                # entering message for the user
-                m = sys.stdin.readline()
-                s.send(m)
-                prompt()
