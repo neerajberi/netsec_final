@@ -9,9 +9,26 @@ from cryptography.hazmat.primitives.asymmetric import padding as Asymmetric_Padd
 from cryptography.hazmat.primitives.asymmetric import rsa
 from cryptography.hazmat.primitives.asymmetric import padding
 
-# Grab bytes
-#def Extract_Bytes(bytes, start, end):
-#    return extracted_bytes
+# Serializes the private key bytes
+def Serialize_Pri_Key(key_bytes):
+    serialized_pri_key = serialization.load_pem_private_key(
+        key_bytes,
+        password=None,
+        backend=default_backend())
+    if isinstance(serialized_pri_key, rsa.RSAPrivateKey) != True:
+        raise RuntimeError ("Invalid Private key file")
+    else:
+        return serialized_pri_key
+
+# Serializes the public key bytes
+def Serialize_Pub_Key(key_bytes):
+    serialized_pub_key = serialization.load_pem_public_key(
+        key_bytes,
+        backend=default_backend())
+    if isinstance(serialized_pub_key, rsa.RSAPublicKey) != True:
+        raise RuntimeError ("Invalid Public key file")
+    else:
+        return serialized_pub_key
 
 # Padding for Symmetric Encryption
 def Padding_For_Symm_Encryption(in_clear_string, block_size):
@@ -40,32 +57,27 @@ def Remove_Padding(padded_string):
 
 # Asymmetric Encryption
 def Asymmetric_Encrypt(pub_key, clear_text):
-   serializedPubKey = serialization.load_pem_public_key(pub_key, backend=default_backend())
-   if isinstance(serializedPubKey, rsa.RSAPublicKey) != True:
-       raise RuntimeError ("Invalid Public key file")
-   in_clear_string = serializedPubKey.encrypt(
-       clear_text,padding.OAEP(
-           mgf=padding.MGF1(algorithm=hashes.SHA1()),
-           algorithm=hashes.SHA1(),
-           label=None
-       )
-   )
-   return ciph_text
+    serialized_pub_key = Serialize_Pub_Key(pub_key)
+    return serialized_pub_key.encrypt(
+        clear_text,
+        Asymmetric_Padding.OAEP(
+            mgf=Asymmetric_Padding.MGF1(algorithm=hashes.SHA1()),
+            algorithm=hashes.SHA1(),
+            label=None
+        )
+    )
 
 # Asymmetric Decryption
 def Asymmetric_Decrypt(pri_key, ciph_text):
-   serializedPrivateKey = serialization.load_pem_private_key(pri_key,password=None,backend=default_backend())
-   if isinstance(serializedPrivateKey,rsa.RSAPrivateKey) != True:
-       raise RuntimeError ("Invalid Private key file")
-   clear_text = serializedPrivateKey.decrypt(
-       ciph_text,
-       padding.OAEP(
-           mgf = padding.MGF1(algorithm=hashes.SHA1()),
-           algorithm=hashes.SHA1(),
-           label=None
-       )
-   )
-   return clear_text
+    serialized_pri_key = Serialize_Pri_Key(pri_key)
+    return serialized_pri_key.decrypt(
+        ciph_text,
+        Asymmetric_Padding.OAEP(
+            mgf=Asymmetric_Padding.MGF1(algorithm=hashes.SHA1()),
+            algorithm=hashes.SHA1(),
+            label=None
+        )
+    )
 
 # Hash_Signing_PriKey
 def Get_Signed_Hash(data, pri_key):
