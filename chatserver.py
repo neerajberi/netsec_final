@@ -22,18 +22,22 @@ user_passes = {
 }
 
 # list of challenged users
-# IP | Port | Challenge hash output(first 32bits) | Can send pass?
+# IP | Port | Challenge hash output(first 32bits)
 users_challenged = [] # initially empty
 # example of how you add a user to this list when you receive a request for a challenge
-#users_challenged.append(['129.0.0.1', 58920, os.urandom(4), False])
-#users_challenged.append(['129.0.0.2', 58920, os.urandom(4), True])
+#users_challenged.append(['129.0.0.1', 58920, os.urandom(4)])
+#users_challenged.append(['129.0.0.2', 58920, os.urandom(4)])
+
+# IP | Port
+users_can_send_pass = []
+#users_can_send_pass.append(['129.0.0.2', 58920])
 
 # list of currently connected users
 # username | IP | Port | Public Key | Shared AES key | Shared HKey | Nonce
 authed_users = [] # initially empty
 # example of how a user would be added to this list
 #                    username | IP       | Port | Public Key | Shared AES key | Shared HKey   | Nonce
-authed_users.append(['jack', '129.0.0.3', '9090', serv_pub_key, os.urandom(32), os.urandom(32), os.urandom(32)])
+#authed_users.append(['jack', '129.0.0.3', '9090', serv_pub_key, os.urandom(32), os.urandom(32), os.urandom(32)])
 
 # verifies a user
 def Verify_User(username, password):
@@ -49,11 +53,17 @@ def Is_User_Challenged(ip, port):
             return True
     return False
 
-# returns a boolean saying whether or not a user can authenticate, ie has passed the challenge
-def Can_User_Auth(ip, port):
+# gets the challenge output for a challenged user
+def Get_Challenge_Out(ip, port):
     for user in users_challenged:
         if user[0] == ip and user[1] == port:
             return user[2]
+
+# returns a boolean saying whether or not a user can authenticate, ie has passed the challenge
+def Can_User_Auth(ip, port):
+    for user in users_can_send_pass:
+        if user[0] == ip and user[1] == port:
+            return True
     return False
 
 # not sure if this is good or not
@@ -127,7 +137,7 @@ if __name__ == "__main__":
                             print("user has not been authed or sent a challenge")
                             challenge_out, challenge_in = common.Create_Challenge()
                             print("adding user to list of challenged")
-                            users_challenged.append([client_ip, client_port, challenge_out, False])
+                            users_challenged.append([client_ip, client_port, challenge_out])
                             message_to_client = ''.join([str(common.Get_Message_ID("challenge_to_client")), challenge_in, challenge_out])
                             print("sending challenge")
                             sock.send(message_to_client)
@@ -136,9 +146,21 @@ if __name__ == "__main__":
 
                         # Challenge response handling
                         if client_message_id_name == 'challenge_response':
-                            # things
                             print "got a solution!"
-                            continue
+                            if (not Is_User_Challenged(client_ip, client_port)) or Can_User_Auth(client_ip, client_port) or Is_User_Authed(client_ip, client_port):
+                                continue
+                            print("user has not been authed and has been sent a challenge")
+                            print "user challenged list"
+                            print users_challenged
+                            challenge_output = Get_Challenge_Out(client_ip, client_port)
+                            if common.Verify_Challenge_Solution(client_message, challenge_output):
+                                print "solution checks out!"
+                                users_can_send_pass.append([client_ip, client_port])
+                                users_challenged.remove([client_ip, client_port, challenge_output])
+                                sock.send(str(common.Get_Message_ID('challenge_result')))
+                            else:
+                                print "solution doesn't check out!"
+                                continue
 
                         # THIS IS WHERE ALL THE PROCESSING AND STUFF ACTUALLY HAPPENS
                         # PROBABLY GOING TO JUST HAND THE SOCK AND DATA OFF TO A HELPER
