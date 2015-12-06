@@ -25,8 +25,8 @@ user_passes = {
 # IP | Port | Challenge hash output(first 32bits) | Can send pass?
 users_challenged = [] # initially empty
 # example of how you add a user to this list when you receive a request for a challenge
-users_challenged.append(['129.0.0.1', '9090', os.urandom(4), False])
-users_challenged.append(['129.0.0.2', '9090', os.urandom(4), True])
+#users_challenged.append(['129.0.0.1', 58920, os.urandom(4), False])
+#users_challenged.append(['129.0.0.2', 58920, os.urandom(4), True])
 
 # list of currently connected users
 # username | IP | Port | Public Key | Shared AES key | Shared HKey | Nonce
@@ -45,7 +45,6 @@ def Verify_User(username, password):
 # determines whether or not a user can answer a challenge yet.
 def Is_User_Challenged(ip, port):
     for user in users_challenged:
-        print(user)
         if user[0] == ip and user[1] == port:
             return True
     return False
@@ -53,7 +52,6 @@ def Is_User_Challenged(ip, port):
 # returns a boolean saying whether or not a user can authenticate, ie has passed the challenge
 def Can_User_Auth(ip, port):
     for user in users_challenged:
-        print(user)
         if user[0] == ip and user[1] == port:
             return user[2]
     return False
@@ -61,7 +59,6 @@ def Can_User_Auth(ip, port):
 # not sure if this is good or not
 def Is_User_Authed(ip, port):
     for user in authed_users:
-        print(user)
         if user[0] == ip and user[1] == port:
             return True
     return False
@@ -107,17 +104,49 @@ if __name__ == "__main__":
                 # broadcast(new_sock, "New member! Everyone say hi to: " + str(address))
             else:
                 # data received from a client that is already connected.
-                try:
+                #try: ##################################
                     data = sock.recv(recv_buf)
                     if data:
-                        print "<" + str(sock.getpeername()) + ">: " + data
                         # THIS IS WHERE ALL THE PROCESSING AND STUFF ACTUALLY HAPPENS
                         # PROBABLY GOING TO JUST HAND THE SOCK AND DATA OFF TO A HELPER
                         # TO KEEP THINGS CLEAN
-                except:
-                    # something went wrong, remove the client and close the socket.
-                    print "Client " + str(address) + " disconnected."
-                    sock.close()
-                    clients.remove(sock)
-                    continue
+
+                        client_ip              = sock.getpeername()[0]
+                        client_port            = sock.getpeername()[1]
+                        client_message_id      = int(data[:1])
+                        client_message_id_name = common.Get_Message_Name(client_message_id)
+                        client_message         = data[1:]
+                        print "client info <" + str(client_ip) + ":" + str(client_port) + ">"
+                        print "client message: " + client_message_id_name
+
+                        # Challenge request handling
+                        if client_message_id_name == 'login_request':
+                            print("login requested")
+                            if Is_User_Challenged(client_ip, client_port) or Can_User_Auth(client_ip, client_port) or Is_User_Authed(client_ip, client_port):
+                                continue
+                            print("user has not been authed or sent a challenge")
+                            challenge_out, challenge_in = common.Create_Challenge()
+                            print("adding user to list of challenged")
+                            users_challenged.append([client_ip, client_port, challenge_out, False])
+                            message_to_client = ''.join([str(common.Get_Message_ID("challenge_to_client")), challenge_in, challenge_out])
+                            print("sending challenge")
+                            sock.send(message_to_client)
+                            print("sent challenge")
+                            continue
+
+                        # Challenge response handling
+                        if client_message_id_name == 'challenge_response':
+                            # things
+                            print "got a solution!"
+                            continue
+
+                        # THIS IS WHERE ALL THE PROCESSING AND STUFF ACTUALLY HAPPENS
+                        # PROBABLY GOING TO JUST HAND THE SOCK AND DATA OFF TO A HELPER
+                        # TO KEEP THINGS CLEAN
+                #except: ################################
+                #    # something went wrong, remove the client and close the socket.
+                #    print "Client " + str(address) + " disconnected."
+                #    sock.close()
+                #    clients.remove(sock)
+                #    continue
     serv_sock.close()

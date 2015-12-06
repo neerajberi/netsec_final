@@ -1,7 +1,6 @@
 # chat client
 # python 3.5
 
-
 import sys, socket, getopt, select, thread, common, time, os
 from cryptography.hazmat.backends import default_backend
 from cryptography.hazmat.primitives.asymmetric import rsa
@@ -12,22 +11,36 @@ def prompt():
 
 # This functions implements the login challenge sequence
 def Request_For_Login():
+    sent_solution = False
     sockClient.send(str(common.Get_Message_ID("login_request")))
+    print "sent challenge request"
+    # RETURN FALSE IF IT TAKES OVER A MINUTE TO DO THIS, do a while that breaks after a certain time
+    # ALSO WRAP THIS IN A TRY CATCH FOR SOCKET TIMEOUTS
     # timeout_start = time.time() ---- could be used for timeout on listening socket
     # timeout = 10 ---- could be used for timeout on listening socket
     # while time.time() < timeout_start + timeout
-    recvData = sockClient.recv(recv_buf)
-    if recvData[0:8] != common.Get_Message_ID("challenge_to_client"):
-        print "Invalid message ID"
-        sys.exit()
-    hashInput, attempt = common.Solve_Challenge(recvData[120:152],recvData[8:120])
-    sendData = ''.join([str(common.Get_Message_ID("challenge_response")), hashInput, attempt])
-    sockClient.send(sendData)
-    recvData = sockClient.recv(recv_buf)
-    if recvData == common.Get_Message_ID("challenge_result"):
-        return True
-    else:
-        return False
+    while True:
+        recvData = sockClient.recv(recv_buf)
+        if recvData:
+            if int(recvData[:1]) == common.Get_Message_ID("challenge_to_client") and sent_solution:
+                print "Invalid message ID"
+                sys.exit()
+            if int(recvData[:1]) == common.Get_Message_ID("challenge_result") and not sent_solution:
+                print "Invalid message ID"
+                sys.exit()
+            if int(recvData[:1]) == common.Get_Message_ID("challenge_to_client"):
+                hash_input = recvData[1:15]
+                hash_output = recvData[15:]
+                solution = common.Solve_Challenge(hash_output, hash_input)
+                print("solved it!")
+                sendData = ''.join([str(common.Get_Message_ID("challenge_response")), solution])
+                sockClient.send(sendData)
+                print("solution sent")
+                sent_solution = True
+            if int(recvData[:1]) == common.Get_Message_ID("challenge_result"):
+                print("CAN SEND PASS")
+                return True
+    return False
 
 # This function asks the user for credentials and implements the user login sequence
 def Initiate_Login_Sequence():
@@ -67,16 +80,14 @@ def Initiate_Login_Sequence():
 #        messageName = common.Get_Message_Name(messageID)
 #        if messageName == "challenge_to_client":
 
-# server private/public key pair
+# server public key pair
 serv_pub_key_path = "server_keypair/server_public_key.pem"
 with open(serv_pub_key_path, "rb") as key_file:
     serv_pub_key = key_file.read()
-serialized_server_pub_key = common.Serialize_Pub_Key(serv_pub_key)
 
 if __name__ == "__main__":
     recv_buf = 4096
-
-# Get the command line arguments and use them as IP Address and port number
+    # Get the command line arguments and use them as IP Address and port number
     argList = sys.argv
     i = 0
     for i in range(0,len(argList)):
@@ -98,10 +109,9 @@ if __name__ == "__main__":
         sys.exit()
     print "Connected!"
 
-
     # Initiate login challenge sequence and exit if failed
     if Request_For_Login() == False:
-        sys.exit("Failed Initial Challenge Verification\nCheck challenge hashing module\nExitin...")
+        sys.exit("Failed Initial Challenge Verification\nCheck challenge hashing module\nExiting...")
 
     for i in range(0,5):
         loginReply = Initiate_Login_Sequence()
