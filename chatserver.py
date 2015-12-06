@@ -114,12 +114,13 @@ if __name__ == "__main__":
                 # broadcast(new_sock, "New member! Everyone say hi to: " + str(address))
             else:
                 # data received from a client that is already connected.
-                #try: ##################################
+                #try: ################################## commented to see exceptions in detail
                     data = sock.recv(recv_buf)
                     if data:
                         # THIS IS WHERE ALL THE PROCESSING AND STUFF ACTUALLY HAPPENS
                         # PROBABLY GOING TO JUST HAND THE SOCK AND DATA OFF TO A HELPER
                         # TO KEEP THINGS CLEAN
+                        # vvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvv
 
                         client_ip              = sock.getpeername()[0]
                         client_port            = sock.getpeername()[1]
@@ -162,10 +163,11 @@ if __name__ == "__main__":
                                 print "solution doesn't check out!"
                                 continue
 
+                        # ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
                         # THIS IS WHERE ALL THE PROCESSING AND STUFF ACTUALLY HAPPENS
                         # PROBABLY GOING TO JUST HAND THE SOCK AND DATA OFF TO A HELPER
                         # TO KEEP THINGS CLEAN
-                #except: ################################
+                #except: ################################ commented to see exceptions in detail
                 #    # something went wrong, remove the client and close the socket.
                 #    print "Client " + str(address) + " disconnected."
                 #    sock.close()
