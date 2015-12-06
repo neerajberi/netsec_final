@@ -9,7 +9,9 @@ from cryptography.hazmat.primitives.asymmetric import padding as Asymmetric_Padd
 from cryptography.hazmat.primitives.asymmetric import rsa
 from cryptography.hazmat.primitives.asymmetric import padding
 
-# output, first 96bits hash input, first 32bits hashoutput
+# creates a challenge. returns the first 32 bits of the hash and the first 112
+# bits of the input. that is 112/128 of the input. meaning the challenged has to
+# guess 16 bits
 def Create_Challenge():
     hash_input = os.urandom(16)
     digest = hashes.Hash(hashes.SHA256(), backend=default_backend())
@@ -17,11 +19,10 @@ def Create_Challenge():
     hash_output = digest.finalize()
     return hash_output[:4], hash_input[:14]
 
-#
-# 96bits: hash input | 32bits: hashout(first32) ]
-# output of method =
+# solves a challenge, returning all 128 bits of the input which hashed to the
+# given output. THERE ARE FASTER WAYS TO DO THIS, BUT IT DOESN'T MATTER IN OUR
+# CASE.
 def Solve_Challenge(hash_output, hash_input):
-    # attempts = 0
     while True:
         digest = hashes.Hash(hashes.SHA256(), backend=default_backend())
         attempt = os.urandom(2)
@@ -29,8 +30,8 @@ def Solve_Challenge(hash_output, hash_input):
         attempted_solution = digest.finalize()
         if attempted_solution[:4] == hash_output:
             return hash_input + attempt
-        #sys.stdout.write(".")
 
+# verifies a given attempt to solve a hash problem.
 def Verify_Challenge_Solution(attempt, hash_output):
     digest = hashes.Hash(hashes.SHA256(), backend=default_backend())
     digest.update(attempt)
