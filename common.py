@@ -1,6 +1,6 @@
 # python 3.5
 
-import os
+import os, time, sys
 from cryptography.hazmat.primitives.ciphers import Cipher, algorithms, modes
 from cryptography.hazmat.backends import default_backend
 from cryptography.hazmat.primitives import hashes, hmac, serialization
@@ -8,6 +8,37 @@ from cryptography.hazmat.primitives import padding as Symmetric_Padding
 from cryptography.hazmat.primitives.asymmetric import padding as Asymmetric_Padding
 from cryptography.hazmat.primitives.asymmetric import rsa
 from cryptography.hazmat.primitives.asymmetric import padding
+
+# output, first 96bits hash input, first 32bits hashoutput
+def Create_Challenge():
+    hash_input = os.urandom(16)
+    digest = hashes.Hash(hashes.SHA256(), backend=default_backend())
+    digest.update(hash_input)
+    hash_output = digest.finalize()
+    return hash_output[:4], hash_input[:14]
+
+#
+# 96bits: hash input | 32bits: hashout(first32) ]
+# output of method =
+def Solve_Challenge(hash_output, hash_input):
+    # attempts = 0
+    while True:
+        digest = hashes.Hash(hashes.SHA256(), backend=default_backend())
+        attempt = os.urandom(2)
+        digest.update(hash_input + attempt)
+        attempted_solution = digest.finalize()
+        if attempted_solution[:4] == hash_output:
+            return hash_input + attempt
+        #sys.stdout.write(".")
+
+def Verify_Challenge_Solution(attempt, hash_output):
+    digest = hashes.Hash(hashes.SHA256(), backend=default_backend())
+    digest.update(attempt)
+    attempted_solution = digest.finalize()
+    if attempted_solution[:4] == hash_output:
+        return True
+    else:
+        return False
 
 # Serializes the private key bytes
 def Serialize_Pri_Key(key_bytes):

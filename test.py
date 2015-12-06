@@ -32,7 +32,17 @@ def Test_Asym(input_string):
     except:
         print("asymmetric encrypt/decrypt : FAILED - exception")
 
+# testing challenge/response
+def Test_Challenge():
+    hash_output, hash_input = common.Create_Challenge()
+    attempt = common.Solve_Challenge(hash_output, hash_input)
+    if common.Verify_Challenge_Solution(attempt, hash_output):
+        print("challenge/response         : SUCCESS")
+    else:
+        print("challenge/response         : FAILED")
+
 Test_Sym("1234567890123456789012345678901234567890123456789012345678901234")
 Test_Sym("12345678901234567890123456789012345678901234567")
 Test_Asym("1234567890123456789012345678901234567890123456789012345678901234")
 Test_Asym("12345678901234567890123456789012345678901234567")
+Test_Challenge()

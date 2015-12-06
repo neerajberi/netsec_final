@@ -3,10 +3,10 @@ LOGIN CHALLENGE EXCHANGE:
 [ bit0-7: messageID ]
 A -> B: connection request to login
 
-[ bit0-7: messageID | bit8-107: hash input | bit108-139: hashout(first32) ]
-B -> A: “challenge message”
+[ bit0-7: messageID | bit8-119: hash input | bit120-151: hashout(first32) ]
+B -> A: challenge message
 
-[ bit0-7: messageID | bit8-35: hash input ]
+[ bit0-7: messageID | bit8-135: hash input ]
 A -> B: The value calculated by Client in response to Challenge message
 
 [ bit0-7: messageID ]
@@ -24,7 +24,7 @@ A -> B: {LOGIN,User,HashPass,N,PubA}PubB
 message:
 [ bit0-7: messageID | bit8-167: Encrypted hash | bit168-end : Ciph ]
 ciphertext:
-YES 
+YES
 {bit0:yes | bit1-256: Symmetric key | bit257-512:HkeyAB | bit513-768: Nonce+1 }PubA
 NO
 { bit0:no  | bit1-512: random | bit513-768: Nonce+1 }PubA ]
@@ -36,10 +36,10 @@ CLIENT KEY EXCHANGE:
 message:
 [ bit0-7: messageID | bit8-167: HMACA1B | bit168-295: IV | bit296-END: Ciph ]
 ciphertext:
-{ bit0-255: NonceA1 | bit256-END: A2 username }SymA1B 
+{ bit0-255: NonceA1 | bit256-END: A2 username }SymA1B
 A1 ->  B: [{UserA2,NA1B}SymA1B,IV]HMAC
 
-message: 
+message:
 [ bit0-7: messageID | bit8-167: HMACA2B | bit168-295: IV | bit296-END: Ciph ]
 ciphertext:
 { bit0-255: NonceA2 | bit256-287: IPA1 | bit288-303: PortA1 | bit304-559: PubA1 | bit560-END: A1 username }SymA2B
