@@ -113,3 +113,28 @@ Message:
 Ciphertext:
 { bit0-255: NonceAAn | bit256-end: Username }SymAAn
 A -> An : [{LOGOUT,Username}SymAAn,IV]HMAC
+
+
+
+MESSAGE IDs:
+
+Message ID (8bit)	Message ID Friendly name (String)
+00000000			login_request
+00000001			challenge_to_client
+00000010			challenge_response
+00000011			challenge_result
+00000100			user_login
+00000101			login_reply_from_server
+00000110			client1_request_to_server_for_client2
+00000111			server_sends_info_to_client2
+00001000			client2_reply_to_server
+00001001			server_reply_to_client1
+00001010			A1_to_A2_key_setup
+00001011			A2_to_A1_ack
+00001100			A1_to_A2_send_message
+00001101			A2_to_A1_send_message
+00001110			client_to_server_list_update
+00001111			server_to_client_user_list
+00010000			client_to_server_logout
+00010001			client_to_client_logout
+
