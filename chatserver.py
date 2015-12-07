@@ -124,10 +124,10 @@ if __name__ == "__main__":
 
                         client_ip              = sock.getpeername()[0]
                         client_port            = sock.getpeername()[1]
-                        client_message_id      = int(data[:1])
+                        print "client info <" + str(client_ip) + ":" + str(client_port) + ">"
+                        client_message_id      = data[:1]
                         client_message_id_name = common.Get_Message_Name(client_message_id)
                         client_message         = data[1:]
-                        print "client info <" + str(client_ip) + ":" + str(client_port) + ">"
                         print "client message: " + client_message_id_name
 
                         # Challenge request handling
@@ -139,7 +139,7 @@ if __name__ == "__main__":
                             challenge_out, challenge_in = common.Create_Challenge()
                             print("adding user to list of challenged")
                             users_challenged.append([client_ip, client_port, challenge_out])
-                            message_to_client = ''.join([str(common.Get_Message_ID("challenge_to_client")), challenge_in, challenge_out])
+                            message_to_client = ''.join([common.Get_Message_ID("challenge_to_client"), challenge_in, challenge_out])
                             print("sending challenge")
                             sock.send(message_to_client)
                             print("sent challenge")
@@ -158,7 +158,7 @@ if __name__ == "__main__":
                                 print "solution checks out!"
                                 users_can_send_pass.append([client_ip, client_port])
                                 users_challenged.remove([client_ip, client_port, challenge_output])
-                                sock.send(str(common.Get_Message_ID('challenge_result')))
+                                sock.send(common.Get_Message_ID('challenge_result'))
                             else:
                                 print "solution doesn't check out!"
                                 continue

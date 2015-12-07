@@ -195,11 +195,12 @@ def Get_Message_ID(message_name):
     for i in range(0,len(MESSAGE_ID_LIST)):
         if MESSAGE_ID_LIST[i][1] == message_name:
             message_ID = MESSAGE_ID_LIST[i][0]
-    return message_ID
+    return chr(message_ID)
 
 # Retrieves the message ref name associated with a 8-bit message ID
 def Get_Message_Name(message_ID):
     message_name = "message_name_not_found"
+    message_ID = ord(message_ID)
     for i in range(0,len(MESSAGE_ID_LIST)):
         if MESSAGE_ID_LIST[i][0] == message_ID:
             message_name = MESSAGE_ID_LIST[i][1]

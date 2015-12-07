@@ -12,7 +12,7 @@ def prompt():
 # This functions implements the login challenge sequence
 def Request_For_Login():
     sent_solution = False
-    sockClient.send(str(common.Get_Message_ID("login_request")))
+    sockClient.send(common.Get_Message_ID("login_request"))
     print "sent challenge request"
     # RETURN FALSE IF IT TAKES OVER A MINUTE TO DO THIS, do a while that breaks after a certain time
     # ALSO WRAP THIS IN A TRY CATCH FOR SOCKET TIMEOUTS
@@ -22,22 +22,22 @@ def Request_For_Login():
     while True:
         recvData = sockClient.recv(recv_buf)
         if recvData:
-            if int(recvData[:1]) == common.Get_Message_ID("challenge_to_client") and sent_solution:
+            if recvData[:1] == common.Get_Message_ID("challenge_to_client") and sent_solution:
                 print "Invalid message ID"
                 sys.exit()
-            if int(recvData[:1]) == common.Get_Message_ID("challenge_result") and not sent_solution:
+            if recvData[:1] == common.Get_Message_ID("challenge_result") and not sent_solution:
                 print "Invalid message ID"
                 sys.exit()
-            if int(recvData[:1]) == common.Get_Message_ID("challenge_to_client"):
+            if recvData[:1] == common.Get_Message_ID("challenge_to_client"):
                 hash_input = recvData[1:15]
                 hash_output = recvData[15:]
                 solution = common.Solve_Challenge(hash_output, hash_input)
                 print("solved it!")
-                sendData = ''.join([str(common.Get_Message_ID("challenge_response")), solution])
+                sendData = ''.join([common.Get_Message_ID("challenge_response"), solution])
                 sockClient.send(sendData)
                 print("solution sent")
                 sent_solution = True
-            if int(recvData[:1]) == common.Get_Message_ID("challenge_result"):
+            if recvData[:1] == common.Get_Message_ID("challenge_result"):
                 print("CAN SEND PASS")
                 return True
     return False
