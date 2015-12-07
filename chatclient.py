@@ -58,7 +58,7 @@ def Initiate_Login_Sequence(client_private_key):
     print serialized_pub_key
 
     username_length = len(username)
-    if username_length > 9:
+    if username_length > 255:
         return False
 
     # bit0-7: MessageID
@@ -69,7 +69,7 @@ def Initiate_Login_Sequence(client_private_key):
     #      bit520-(520+(8*ll)-1): login |
     #        bit(520+(8*ll)-END: password
 
-    clearText = ''.join([Nonce, serialized_pub_key, str(username_length), username, password])
+    clearText = ''.join([Nonce, serialized_pub_key, chr(username_length), username, password])
     tempAESkey = os.urandom(32)
     cipherText, iv = common.Symmetric_Encrypt(clearText, tempAESkey)
     print "This is the Cleartext \n%s\n" % clearText
@@ -85,6 +85,11 @@ def Initiate_Login_Sequence(client_private_key):
     sockClient.send(sendData)
 
     print "sent the user/pass combo!"
+    print encryptedAESkey
+    print "length of encrypted hash = %s" % len(signedHash)
+    print "length of IV = %s" % len(iv)
+    print "length of encAESkey = %s" % len(encryptedAESkey)
+    print "length of Nonce %s, pubkey %s, usernamelength, ussername %s, password %s" % (len(Nonce), len(serialized_serv_pub_key), len(username), len(password))
 
     recvData = sockClient.recv(recv_buf)
     if recvData[0:8] != common.Get_Message_ID("login_reply_from_server"):
