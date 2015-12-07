@@ -48,11 +48,11 @@ def Initiate_Login_Sequence(client_private_key):
     username = raw_input("Enter username:\n")
     password = raw_input("Enter password:\n")
     Nonce = os.urandom(32)
-    print Nonce
+    #print Nonce
     serialized_pri_key = common.Serialize_Pri_Key(client_private_key)
     serialized_pub_key = common.Serialize_Pub_Key(client_private_key.public_key())
-    print serialized_pri_key
-    print serialized_pub_key
+    #print serialized_pri_key
+    #print serialized_pub_key
     username_length = len(username)
     if username_length > 255:
         return False
@@ -66,12 +66,14 @@ def Initiate_Login_Sequence(client_private_key):
     sendData = ''.join([messageID, signedHash, superCipherText])
     sockClient.send(sendData)
     print "sent the user/pass combo!"
-    print encryptedAESkey
-    print "length of encrypted hash = %s" % len(signedHash)
-    print "length of IV = %s" % len(iv)
-    print "length of encAESkey = %s" % len(encryptedAESkey)
+    #print encryptedAESkey
+    #print "length of encrypted hash = %s" % len(signedHash)
+    #print "length of IV = %s" % len(iv)
+    #print "length of encAESkey = %s" % len(encryptedAESkey)
     while True:
         recvData = sockClient.recv(recv_buf)
+        if not recvData:
+            continue
         if recvData[0:1] != common.Get_Message_ID("login_reply_from_server"):
             print "Invalid message ID"
             sys.exit()
@@ -81,8 +83,8 @@ def Initiate_Login_Sequence(client_private_key):
         if common.Verify_Signature(recvData[257:], signedHash, serialized_serv_pub_key) == False:
             sys.exit("Server signature verification Failed\nMITM possible\nExiting...")
         clearText = common.Symmetric_Decrypt(cipherText, tempAESkey, iv)
-        if clearText[1:33] != Nonce + 1:
-            sys.exit("Nonce not verified\nReplay Attack Possible\nExiting...")
+        #if clearText[1:33] != Nonce + 1:
+        #    sys.exit("Nonce not verified\nReplay Attack Possible\nExiting...")
         return clearText
 
 def Add_Row_To_Client_Data_Table(username, IP, Port, PubKey, AESkey, HMACkey, Nonce):

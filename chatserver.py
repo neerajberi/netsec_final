@@ -1,7 +1,7 @@
 # chat server
 # python 3.5
 
-import sys, socket, getopt, select, common, os
+import sys, socket, getopt, select, common, os, binascii
 
 # server private/public key pair
 serv_pri_key_path = "server_keypair/server_private_key.pem"
@@ -41,9 +41,9 @@ authed_users = [] # initially empty
 
 # verifies a user
 def Verify_User(username, password):
-    if user_passes[username] == common.Hash_This(password):
-        return True
-    else:
+    try:
+        return user_passes[username] == common.Hash_This(password)
+    except:
         return False
 
 # determines whether or not a user can answer a challenge yet.
@@ -165,10 +165,60 @@ if __name__ == "__main__":
 
                         # Verifies the user login request
                         if client_message_id_name == "user_login":
-                            print("user attempting to login")
+                            if (not Can_User_Auth(client_ip, client_port)) or Is_User_Authed(client_ip, client_port):
+                                continue
+                            #print("user attempting to login")
+                            # received
+                            # message id (1 byte) | client signed hash (256 bytes) | iv (16 bytes) | encrypted AES (256 bytes) | ciph
+                            # AES encrypted ciph:
+                            #     Nonce (32 bytes) | public key client (460 bytes) | username length (1 byte) | username (<-) | password (toend)
+                            client_signed_hash = client_message[   :256]
+                            iv                 = client_message[256:272]
+                            encrypted_AES_key  = client_message[272:528]
+                            ciphertext         = client_message[528:   ]
+                            unencrypted_AES_key = common.Asymmetric_Decrypt(serv_pri_key, encrypted_AES_key)
+                            #print client_signed_hash
+                            #print "iv: " + binascii.hexlify(iv)
+                            #print encrypted_AES_key
+                            #print ciphertext
+                            #print "AES key: " + binascii.hexlify(unencrypted_AES_key) #### YES THIS IS WORKING!
+
+                            plaintext = common.Symmetric_Decrypt(ciphertext, unencrypted_AES_key, iv)
+                            #print "---------start plaintext---------\n" + plaintext + "\n---------end plaintext---------"
+                            client_nonce          = plaintext[    :  32]
+                            client_public_key     = plaintext[32  : 483]
+                            client_usernamelength = plaintext[483 : 484]
+                            client_username       = plaintext[484 : 484+ord(client_usernamelength)]
+                            client_password       = plaintext[484+ord(client_usernamelength) : ]
+                            #print "client_nonce: \"" + binascii.hexlify(client_nonce) + "\""
+                            #print "client public key:\n" + client_public_key
+                            #print "client username length: \"" + str(ord(client_usernamelength)) + "\""
+                            #print "client username: \"" + client_username + "\""
+                            #print "client password: \"" + client_password + "\""
+
+                            response_message_id = common.Get_Message_ID("login_reply_from_server")
+                            # verify login message and user/pass
+                            data_to_verify = client_message[256 : ]
+                            if (not common.Verify_Signature(data_to_verify, client_signed_hash, client_public_key)) or (not Verify_User(client_username, client_password)):
+                                yes_or_no = chr(0)
+                                random_filler = os.urandom(96)
+                                response_plaintext = "".join([yes_or_no,random_filler])
+                                response_ciphertext, response_iv = common.Symmetric_Encrypt(response_plaintext, unencrypted_AES_key)
+                                response_superCipherText = ''.join([response_iv, response_ciphertext])
+                                response_signedHash = common.Get_Signed_Hash(response_superCipherText, serv_pri_key)
+                                sendData = "".join([response_message_id, response_signedHash, response_superCipherText])
+                                sock.send(sendData)
+                                print "invalid user/signature sending no response"
+                                continue
+
+                            print "user+signature verified! more to come!"
+                            # response
+                            # message id (1 byte) | server signed hash (256 bytes) | iv(diff) (16 bytes) | ciph
+                            # ciph encrypted with AES from received:
+                            #     YES/NO (1 byte) | Nonce+1 (32 bytes) | AES symmetric key (32 bytes) | HMAC symmetric key (32 bytes)
+
+                            #authed_users.append(['jack', '129.0.0.3', '9090', serv_pub_key, os.urandom(32), os.urandom(32), os.urandom(32)])
                             continue
-                            # things
-                            #bit8-167: Encrypted hash | {bit0-255: Nonce | bit256-511: Publickey Client | bit512-519: login length(ll) in bytes | bit520-(520+(8*ll)-1): login | bit(520+(8*ll)-END: password}PubB ]
 
                         # ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
                         # THIS IS WHERE ALL THE PROCESSING AND STUFF ACTUALLY HAPPENS
