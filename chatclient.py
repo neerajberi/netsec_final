@@ -90,13 +90,9 @@ def Initiate_Login_Sequence(client_private_key):
 
 def Add_Row_To_Client_Data_Table(username, IP, Port, PubKey, AESkey, HMACkey, Nonce):
     i = len(clientDataTable)
-    clientDataTable[i][0] = username
-    clientDataTable[i][1] = IP
-    clientDataTable[i][2] = Port
-    clientDataTable[i][3] = PubKey
-    clientDataTable[i][4] = AESkey
-    clientDataTable[i][5] = HMACkey
-    clientDataTable[i][6] = Nonce
+    clientDataTable.append([username, IP, Port, PubKey, AESkey, HMACkey, Nonce])
+    return
+
 
 #def keep_listening():
 #    while True:
@@ -173,6 +169,7 @@ if __name__ == "__main__":
         "SERVER", serverIP, serverPort, serialized_serv_pub_key, loginReply[33:65], loginReply[65:97], loginReply[1:33]
     )
     print "Logged In"
+    print "Added Server Details to the database\n"
     print clientDataTable
 
 
