@@ -1,4 +1,6 @@
 from os import urandom
+from cryptography.hazmat.primitives.asymmetric import rsa
+from cryptography.hazmat.backends import default_backend
 import common, chatserver
 
 # testing symmetric encryption/decryption
@@ -8,7 +10,7 @@ def Test_Sym(input_string):
         sym_ciph, iv_notblock  = common.Symmetric_Encrypt(input_string, sym_aes_key)
         sym_plaintext = common.Symmetric_Decrypt(sym_ciph,  sym_aes_key, iv_notblock)
         if input_string == sym_plaintext:
-            print("symmetric encrypt/decrypt  : SUCCESS")
+            print("symmetric encrypt/decrypt  : success")
         else:
             print("symmetric encrypt/decrypt  : FAILED - unequal")
     except:
@@ -26,7 +28,7 @@ def Test_Asym(input_string):
         asym_ciph      = common.Asymmetric_Encrypt(pub_key, input_string)
         asym_plaintext = common.Asymmetric_Decrypt(pri_key, asym_ciph)
         if input_string == asym_plaintext:
-            print("asymmetric encrypt/decrypt : SUCCESS")
+            print("asymmetric encrypt/decrypt : success")
         else:
             print("asymmetric encrypt/decrypt : FAILED - unequal")
     except:
@@ -37,7 +39,7 @@ def Test_Challenge():
     hash_output, hash_input = common.Create_Challenge()
     attempt = common.Solve_Challenge(hash_output, hash_input)
     if common.Verify_Challenge_Solution(attempt, hash_output):
-        print("challenge/response         : SUCCESS")
+        print("challenge/response         : success")
     else:
         print("challenge/response         : FAILED")
 
@@ -45,7 +47,7 @@ def Test_Challenge():
 def Test_Verify_User():
     if chatserver.Verify_User('jack', '4098'):
         if not chatserver.Verify_User('jack', '4099'):
-            print("user verification          : SUCCESS")
+            print("user verification          : success")
             return
     print("user verification          : FAILED")
     #print(Is_User_Challenged('129.0.0.1', '9090'))
@@ -57,21 +59,36 @@ def Test_Verify_User():
 
 def Test_Message_ID_Functions():
     if common.Get_Message_ID('A2_to_A1_ack') == 0b00001011:
-        print("Get_Message_ID             : SUCCESS")
+        print("Get_Message_ID             : success")
     else:
         print("Get_Message_ID             : FAILURE")
     if common.Get_Message_ID('user_login') == 4:
-        print("Get_Message_ID             : SUCCESS")
+        print("Get_Message_ID             : success")
     else:
         print("Get_Message_ID             : FAILURE")
     if common.Get_Message_Name(0b00000011) == 'challenge_result':
-        print("Get_Message_Name           : SUCCESS")
+        print("Get_Message_Name           : success")
     else:
         print("Get_Message_Name           : FAILURE")
     if common.Get_Message_Name(3) == 'challenge_result':
-        print("Get_Message_Name           : SUCCESS")
+        print("Get_Message_Name           : success")
     else:
         print("Get_Message_Name           : FAILURE")
+
+def Test_Serialization():
+    private_key = rsa.generate_private_key(
+        public_exponent=65537,
+        key_size=2048,
+        backend=default_backend())
+    if (private_key == common.Deserialize_Pri_Key(common.Serialize_Pri_Key(private_key))):
+        print "Private Key Serialization  : success"
+    else:
+        print "Private Key Serialization  : FAILURE"
+    public_key = private_key.public_key()
+    if (public_key == common.Deserialize_Pub_Key(common.Serialize_Pub_Key(public_key))):
+        print "Public Key Serialization   : success"
+    else:
+        print "Public Key Serialization   : FAILURE"
 
 Test_Sym("1234567890123456789012345678901234567890123456789012345678901234")
 Test_Sym("12345678901234567890123456789012345678901234567")
@@ -79,4 +96,5 @@ Test_Asym("1234567890123456789012345678901234567890123456789012345678901234")
 Test_Asym("12345678901234567890123456789012345678901234567")
 Test_Verify_User()
 Test_Message_ID_Functions()
+Test_Serialization()
 Test_Challenge()
