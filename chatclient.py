@@ -43,24 +43,37 @@ def Request_For_Login():
     return False
 
 # This function asks the user for credentials and implements the user login sequence
-def Initiate_Login_Sequence():
+def Initiate_Login_Sequence(client_private_key):
+
     username = raw_input("Enter username:\n")
     password = raw_input("Enter password:\n")
+
     Nonce = os.urandom(32)
-    clientPrivateKey = rsa.generate_private_key(
-        public_exponent=65537,
-        key_size=2048,
-        backend=default_backend()
-    )
-    serializedPriKey = common.Serialize_Pri_Key(clientPrivateKey)
-    serializedPubKey = common.Serialize_Pub_Key(clientPrivateKey.public_key())
-    ll = len(username)
-    clearText = ''.join([Nonce, serializedPubKey, ll, username, password])
-    cipherText = common.Asymmetric_Encrypt(serialized_server_pub_key, clearText)
-    signedHash = common.Get_Signed_Hash(cipherText, serializedPriKey)
+
+    serialized_pri_key = common.Serialize_Pri_Key(client_private_key)
+    serialized_pub_key = common.Serialize_Pub_Key(client_private_key.public_key())
+
+    username_length = len(username)
+    if username_length > 9:
+        return False
+
+    # bit0-7: MessageID
+    # bit8-167: Signed hash of the encrypted portion |
+    # bit0-255: Semi-Unique Nonce |
+    #  bit256-511: Publickey of the  Client |
+    #    bit512-519: login length(ll) in bytes |
+    #      bit520-(520+(8*ll)-1): login |
+    #        bit(520+(8*ll)-END: password
+
+    clearText = ''.join([Nonce, serialized_pub_key, str(username_length), username, password])
+    cipherText = common.Asymmetric_Encrypt(serialized_serv_pub_key, clearText)
+    signedHash = common.Get_Signed_Hash(cipherText, serialized_pri_key)
     messageID = common.Get_Message_ID("user_login")
-    sendData = ''.join([messageID, signedHash, cipherText])
+    sendData = ''.join([str(messageID), signedHash, cipherText])
     sockClient.send(sendData)
+
+    print "sent the user/pass combo!"
+
     recvData = sockClient.recv(recv_buf)
     if recvData[0:8] != common.Get_Message_ID("login_reply_from_server"):
         print "Invalid message ID"
@@ -72,7 +85,6 @@ def Initiate_Login_Sequence():
     clearText = common.Asymmetric_Decrypt(serializedPriKey, cipherText)
     return clearText
 
-
 #def keep_listening():
 #    while True:
 #        rawReceivedMessage = sockClient.recv(recv_buf)
@@ -82,8 +94,9 @@ def Initiate_Login_Sequence():
 
 # server public key pair
 serv_pub_key_path = "server_keypair/server_public_key.pem"
+serialized_serv_pub_key = ""
 with open(serv_pub_key_path, "rb") as key_file:
-    serv_pub_key = key_file.read()
+    serialized_serv_pub_key = key_file.read()
 
 if __name__ == "__main__":
     recv_buf = 4096
@@ -113,8 +126,14 @@ if __name__ == "__main__":
     if Request_For_Login() == False:
         sys.exit("Failed Initial Challenge Verification\nCheck challenge hashing module\nExiting...")
 
+    client_private_key = rsa.generate_private_key(
+        public_exponent=65537,
+        key_size=2048,
+        backend=default_backend()
+    )
+
     for i in range(0,5):
-        loginReply = Initiate_Login_Sequence()
+        loginReply = Initiate_Login_Sequence(client_private_key)
         if loginReply[0] == True:
             break
         else:
