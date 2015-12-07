@@ -12,6 +12,7 @@ def prompt():
 # This functions implements the login challenge sequence
 def Request_For_Login():
     sent_solution = False
+    print "login request messageID = %s" % common.Get_Message_ID("login_request")
     sockClient.send(common.Get_Message_ID("login_request"))
     print "sent challenge request"
     # RETURN FALSE IF IT TAKES OVER A MINUTE TO DO THIS, do a while that breaks after a certain time
@@ -49,9 +50,12 @@ def Initiate_Login_Sequence(client_private_key):
     password = raw_input("Enter password:\n")
 
     Nonce = os.urandom(32)
+    print Nonce
 
     serialized_pri_key = common.Serialize_Pri_Key(client_private_key)
     serialized_pub_key = common.Serialize_Pub_Key(client_private_key.public_key())
+    print serialized_pri_key
+    print serialized_pub_key
 
     username_length = len(username)
     if username_length > 9:
@@ -66,10 +70,18 @@ def Initiate_Login_Sequence(client_private_key):
     #        bit(520+(8*ll)-END: password
 
     clearText = ''.join([Nonce, serialized_pub_key, str(username_length), username, password])
-    cipherText = common.Asymmetric_Encrypt(serialized_serv_pub_key, clearText)
-    signedHash = common.Get_Signed_Hash(cipherText, serialized_pri_key)
+    tempAESkey = os.urandom(32)
+    cipherText, iv = common.Symmetric_Encrypt(clearText, tempAESkey)
+    print "This is the Cleartext \n%s\n" % clearText
+    print cipherText
+    print "This is IV \n%s" % iv
+    encryptedAESkey = common.Asymmetric_Encrypt(serialized_serv_pub_key, tempAESkey)
+    superCipherText = ''.join([iv, encryptedAESkey, cipherText])
+    signedHash = common.Get_Signed_Hash(superCipherText, serialized_pri_key)
     messageID = common.Get_Message_ID("user_login")
-    sendData = ''.join([str(messageID), signedHash, cipherText])
+    sendData = ''.join([messageID, signedHash, superCipherText])
+    print "below is the sendData \n"
+    print sendData
     sockClient.send(sendData)
 
     print "sent the user/pass combo!"
