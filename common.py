@@ -41,26 +41,41 @@ def Verify_Challenge_Solution(attempt, hash_output):
     else:
         return False
 
-# Serializes the private key bytes
-def Serialize_Pri_Key(key_bytes):
-    serialized_pri_key = serialization.load_pem_private_key(
+# Serializes a private key instance
+def Serialize_Pri_Key(key_instance):
+    serialized_pri_key = key_instance.private_bytes(
+        encoding=serialization.Encoding.PEM,
+        format=serialization.PrivateFormat.TraditionalOpenSSL,
+        encryption_algorithm=serialization.NoEncryption())
+    return serialized_pri_key
+
+# Serializes a public key instance
+def Serialize_Pub_Key(key_instance):
+    serialized_pub_key = key_instance.public_bytes(
+       encoding=serialization.Encoding.PEM,
+       format=serialization.PublicFormat.SubjectPublicKeyInfo)
+    return serialized_pub_key
+
+# Deserializes the private key bytes
+def Deserialize_Pri_Key(key_bytes):
+    deserialized_pri_key = serialization.load_pem_private_key(
         key_bytes,
         password=None,
         backend=default_backend())
-    if isinstance(serialized_pri_key, rsa.RSAPrivateKey) != True:
+    if isinstance(deserialized_pri_key, rsa.RSAPrivateKey) != True:
         raise RuntimeError ("Invalid Private key file")
     else:
-        return serialized_pri_key
+        return deserialized_pri_key
 
-# Serializes the public key bytes
-def Serialize_Pub_Key(key_bytes):
-    serialized_pub_key = serialization.load_pem_public_key(
+# Deserializes the public key bytes
+def Deserialize_Pub_Key(key_bytes):
+    deserialized_pub_key = serialization.load_pem_public_key(
         key_bytes,
         backend=default_backend())
-    if isinstance(serialized_pub_key, rsa.RSAPublicKey) != True:
+    if isinstance(deserialized_pub_key, rsa.RSAPublicKey) != True:
         raise RuntimeError ("Invalid Public key file")
     else:
-        return serialized_pub_key
+        return deserialized_pub_key
 
 # Padding for Symmetric Encryption
 def Padding_For_Symm_Encryption(in_clear_string, block_size):
@@ -89,7 +104,7 @@ def Remove_Padding(padded_string):
 
 # Asymmetric Encryption
 def Asymmetric_Encrypt(pub_key, clear_text):
-    serialized_pub_key = Serialize_Pub_Key(pub_key)
+    serialized_pub_key = Deserialize_Pub_Key(pub_key)
     return serialized_pub_key.encrypt(
         clear_text,
         Asymmetric_Padding.OAEP(
@@ -101,7 +116,7 @@ def Asymmetric_Encrypt(pub_key, clear_text):
 
 # Asymmetric Decryption
 def Asymmetric_Decrypt(pri_key, ciph_text):
-    serialized_pri_key = Serialize_Pri_Key(pri_key)
+    serialized_pri_key = Deserialize_Pri_Key(pri_key)
     return serialized_pri_key.decrypt(
         ciph_text,
         Asymmetric_Padding.OAEP(
@@ -193,8 +208,10 @@ MESSAGE_ID_LIST = [
     [0b00000001, "challenge_to_client"],
     [0b00000010, "challenge_response"],
     [0b00000011, "challenge_result"],
+
     [0b00000100, "user_login"],
     [0b00000101, "login_reply_from_server"],
+
     [0b00000110, "client1_request_to_server_for_client2"],
     [0b00000111, "server_sends_info_to_client2"],
     [0b00001000, "client2_reply_to_server"],

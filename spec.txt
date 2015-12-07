@@ -25,7 +25,7 @@ message:
 [ bit0-7: messageID | bit8-167: Encrypted hash | bit168-end : Ciph ]
 ciphertext:
 YES
-{bit0:yes | bit1-256: Symmetric key | bit257-512:HkeyAB | bit513-768: Nonce+1 }PubA
+{ bit0:yes | bit1-256: Symmetric key | bit257-512:HkeyAB | bit513-768: Nonce+1 }PubA
 NO
 { bit0:no  | bit1-512: random | bit513-768: Nonce+1 }PubA ]
 B -> A: [{LOGGED-IN,SymAB,HKeyAB,N+1}PubA]PriB
@@ -137,4 +137,3 @@ Message ID (8bit)	Message ID Friendly name (String)
 00001111			server_to_client_user_list
 00010000			client_to_server_logout
 00010001			client_to_client_logout
-
