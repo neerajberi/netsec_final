@@ -158,13 +158,14 @@ if __name__ == "__main__":
     ##### Initiate login authorization sequence for this user and get the clear text
     for i in range(0,5):
         loginReply = Initiate_Login_Sequence(client_private_key)
-        if loginReply[0] == "1":
+        if loginReply[:1] == chr(1):
             break
         else:
             if i == 4:
                 sys.exit("Incorrect username or password\nAll attempts exhausted\nExiting...")
             else:
                 print "Incorrect username or password\nPlease try again (Remaining Attempts = %s)" % (4-i)
+    print "credentials accepted!"
     ##### Store the values in clientDataTable
     ##### login reply format:
     ##### YES/NO (1 byte) | Nonce+1 (32 bytes) | AES symmetric key (32 bytes) | HMAC symmetric key (32 bytes)

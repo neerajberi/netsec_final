@@ -182,7 +182,6 @@ if __name__ == "__main__":
                             #print encrypted_AES_key
                             #print ciphertext
                             #print "AES key: " + binascii.hexlify(unencrypted_AES_key) #### YES THIS IS WORKING!
-
                             plaintext = common.Symmetric_Decrypt(ciphertext, unencrypted_AES_key, iv)
                             #print "---------start plaintext---------\n" + plaintext + "\n---------end plaintext---------"
                             client_nonce          = plaintext[    :  32]
@@ -195,15 +194,14 @@ if __name__ == "__main__":
                             #print "client username length: \"" + str(ord(client_usernamelength)) + "\""
                             #print "client username: \"" + client_username + "\""
                             #print "client password: \"" + client_password + "\""
-
                             response_message_id = common.Get_Message_ID("login_reply_from_server")
                             # verify login message and user/pass
                             data_to_verify = client_message[256 : ]
+                            response_nonce = common.Increment_Nonce(client_nonce)
                             if (not common.Verify_Signature(data_to_verify, client_signed_hash, client_public_key)) or (not Verify_User(client_username, client_password)):
                                 yes_or_no = chr(0)
-                                response_nonce = common.Increment_Nonce(client_nonce)
                                 random_filler = os.urandom(64)
-                                response_plaintext = "".join([yes_or_no,str(response_nonce),random_filler])
+                                response_plaintext = "".join([yes_or_no,response_nonce,random_filler])
                                 response_ciphertext, response_iv = common.Symmetric_Encrypt(response_plaintext, unencrypted_AES_key)
                                 response_superCipherText = ''.join([response_iv, response_ciphertext])
                                 response_signedHash = common.Get_Signed_Hash(response_superCipherText, serv_pri_key)
@@ -211,23 +209,19 @@ if __name__ == "__main__":
                                 sock.send(sendData)
                                 print "invalid user/signature sending \"bad\" response"
                                 continue
-
                             print "user+signature verified! more to come!"
-                            #yes_or_no = chr(0)
-                            #response_nonce = common.Increment_Nonce(client_nonce)
-                            #random_filler = os.urandom(64)
-                            #response_plaintext = "".join([yes_or_no,str(response_nonce),random_filler])
-                            #response_ciphertext, response_iv = common.Symmetric_Encrypt(response_plaintext, unencrypted_AES_key)
-                            #response_superCipherText = ''.join([response_iv, response_ciphertext])
-                            #response_signedHash = common.Get_Signed_Hash(response_superCipherText, serv_pri_key)
-                            #sendData = "".join([response_message_id, response_signedHash, response_superCipherText])
-                            
-                            # response
-                            # message id (1 byte) | server signed hash (256 bytes) | iv(diff) (16 bytes) | ciph
-                            # ciph encrypted with AES from received:
-                            #     YES/NO (1 byte) | Nonce+1 (32 bytes) | AES symmetric key (32 bytes) | HMAC symmetric key (32 bytes)
-
-                            #authed_users.append(['jack', '129.0.0.3', '9090', serv_pub_key, os.urandom(32), os.urandom(32), os.urandom(32)])
+                            yes_or_no = chr(1)
+                            shared_aes  = os.urandom(32)
+                            shared_hkey = os.urandom(32)
+                            response_plaintext = "".join([yes_or_no,response_nonce,shared_aes,shared_hkey])
+                            response_ciphertext, response_iv = common.Symmetric_Encrypt(response_plaintext, unencrypted_AES_key)
+                            response_superCipherText = ''.join([response_iv, response_ciphertext])
+                            response_signedHash = common.Get_Signed_Hash(response_superCipherText, serv_pri_key)
+                            sendData = "".join([response_message_id, response_signedHash, response_superCipherText])
+                            sock.send(sendData)
+                            # username | IP | Port | Public Key | Shared AES key | Shared HKey | Nonce
+                            authed_users.append([client_username, client_ip, client_port, client_public_key, shared_aes, shared_hkey, response_nonce])
+                            print "sent acceptance message/added user to list of active, authed users"
                             continue
 
                         # ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
