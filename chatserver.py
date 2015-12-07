@@ -163,6 +163,13 @@ if __name__ == "__main__":
                                 print "solution doesn't check out!"
                                 continue
 
+                        # Verifies the user login request
+                        if client_message_id_name == "user_login":
+                            print("user attempting to login")
+                            continue
+                            # things
+                            #bit8-167: Encrypted hash | {bit0-255: Nonce | bit256-511: Publickey Client | bit512-519: login length(ll) in bytes | bit520-(520+(8*ll)-1): login | bit(520+(8*ll)-END: password}PubB ]
+
                         # ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
                         # THIS IS WHERE ALL THE PROCESSING AND STUFF ACTUALLY HAPPENS
                         # PROBABLY GOING TO JUST HAND THE SOCK AND DATA OFF TO A HELPER
@@ -174,3 +181,30 @@ if __name__ == "__main__":
                 #    clients.remove(sock)
                 #    continue
     serv_sock.close()
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+#

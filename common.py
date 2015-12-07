@@ -104,8 +104,8 @@ def Remove_Padding(padded_string):
 
 # Asymmetric Encryption
 def Asymmetric_Encrypt(pub_key, clear_text):
-    serialized_pub_key = Deserialize_Pub_Key(pub_key)
-    return serialized_pub_key.encrypt(
+    deserialized_pub_key = Deserialize_Pub_Key(pub_key)
+    return deserialized_pub_key.encrypt(
         clear_text,
         Asymmetric_Padding.OAEP(
             mgf=Asymmetric_Padding.MGF1(algorithm=hashes.SHA1()),
@@ -116,8 +116,8 @@ def Asymmetric_Encrypt(pub_key, clear_text):
 
 # Asymmetric Decryption
 def Asymmetric_Decrypt(pri_key, ciph_text):
-    serialized_pri_key = Deserialize_Pri_Key(pri_key)
-    return serialized_pri_key.decrypt(
+    deserialized_pri_key = Deserialize_Pri_Key(pri_key)
+    return deserialized_pri_key.decrypt(
         ciph_text,
         Asymmetric_Padding.OAEP(
             mgf=Asymmetric_Padding.MGF1(algorithm=hashes.SHA1()),
@@ -128,7 +128,8 @@ def Asymmetric_Decrypt(pri_key, ciph_text):
 
 # Hash_Signing_PriKey
 def Get_Signed_Hash(data, pri_key):
-    signer = pri_key.signer(
+    deserialized_pri_key = Deserialize_Pri_Key(pri_key)
+    signer = deserialized_pri_key.signer(
         Asymmetric_Padding.PSS(
             mgf=Asymmetric_Padding.MGF1(hashes.SHA256()),
             salt_length=Asymmetric_Padding.PSS.MAX_LENGTH
@@ -140,7 +141,8 @@ def Get_Signed_Hash(data, pri_key):
 
 # Signature Verification
 def Verify_Signature(data, signed_hash, pub_key):
-    verifier = pub_key.verifier(
+    deserialized_pub_key = Deserialize_Pub_Key(pub_key)
+    verifier = deserialized_pub_key.verifier(
         signed_hash,
         Asymmetric_Padding.PSS(
             mgf=Asymmetric_Padding.MGF1(hashes.SHA256()),
