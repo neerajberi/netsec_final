@@ -1,6 +1,6 @@
 # python 3.5
 
-import os, time, sys
+import os, time, sys, binascii
 from cryptography.hazmat.primitives.ciphers import Cipher, algorithms, modes
 from cryptography.hazmat.backends import default_backend
 from cryptography.hazmat.primitives import hashes, hmac, serialization
@@ -8,6 +8,14 @@ from cryptography.hazmat.primitives import padding as Symmetric_Padding
 from cryptography.hazmat.primitives.asymmetric import padding as Asymmetric_Padding
 from cryptography.hazmat.primitives.asymmetric import rsa
 from cryptography.hazmat.primitives.asymmetric import padding
+
+def Increment_Nonce(nonce_input):
+    hex_nonce = binascii.hexlify(nonce_input)
+    int_nonce = int(hex_nonce,16)
+    inc_nonce = int_nonce + 1
+    hex_inc_nonce = hex(inc_nonce)
+    inc_nonce_bytes = binascii.unhexlify((hex_inc_nonce[2:])[:-1])
+    return inc_nonce_bytes
 
 # creates a challenge. returns the first 32 bits of the hash and the first 112
 # bits of the input. that is 112/128 of the input. meaning the challenged has to

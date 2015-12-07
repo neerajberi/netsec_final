@@ -83,8 +83,9 @@ def Initiate_Login_Sequence(client_private_key):
         if common.Verify_Signature(recvData[257:], signedHash, serialized_serv_pub_key) == False:
             sys.exit("Server signature verification Failed\nMITM possible\nExiting...")
         clearText = common.Symmetric_Decrypt(cipherText, tempAESkey, iv)
-        #if clearText[1:33] != Nonce + 1:
-        #    sys.exit("Nonce not verified\nReplay Attack Possible\nExiting...")
+        if clearText[1:33] != common.Increment_Nonce(Nonce):
+            sys.exit("Nonce not verified\nReplay Attack Possible\nExiting...")
+        print "nonce was good bruh"
         return clearText
 
 def Add_Row_To_Client_Data_Table(username, IP, Port, PubKey, AESkey, HMACkey, Nonce):

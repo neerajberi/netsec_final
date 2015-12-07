@@ -201,17 +201,27 @@ if __name__ == "__main__":
                             data_to_verify = client_message[256 : ]
                             if (not common.Verify_Signature(data_to_verify, client_signed_hash, client_public_key)) or (not Verify_User(client_username, client_password)):
                                 yes_or_no = chr(0)
-                                random_filler = os.urandom(96)
-                                response_plaintext = "".join([yes_or_no,random_filler])
+                                response_nonce = common.Increment_Nonce(client_nonce)
+                                random_filler = os.urandom(64)
+                                response_plaintext = "".join([yes_or_no,str(response_nonce),random_filler])
                                 response_ciphertext, response_iv = common.Symmetric_Encrypt(response_plaintext, unencrypted_AES_key)
                                 response_superCipherText = ''.join([response_iv, response_ciphertext])
                                 response_signedHash = common.Get_Signed_Hash(response_superCipherText, serv_pri_key)
                                 sendData = "".join([response_message_id, response_signedHash, response_superCipherText])
                                 sock.send(sendData)
-                                print "invalid user/signature sending no response"
+                                print "invalid user/signature sending \"bad\" response"
                                 continue
 
                             print "user+signature verified! more to come!"
+                            #yes_or_no = chr(0)
+                            #response_nonce = common.Increment_Nonce(client_nonce)
+                            #random_filler = os.urandom(64)
+                            #response_plaintext = "".join([yes_or_no,str(response_nonce),random_filler])
+                            #response_ciphertext, response_iv = common.Symmetric_Encrypt(response_plaintext, unencrypted_AES_key)
+                            #response_superCipherText = ''.join([response_iv, response_ciphertext])
+                            #response_signedHash = common.Get_Signed_Hash(response_superCipherText, serv_pri_key)
+                            #sendData = "".join([response_message_id, response_signedHash, response_superCipherText])
+                            
                             # response
                             # message id (1 byte) | server signed hash (256 bytes) | iv(diff) (16 bytes) | ciph
                             # ciph encrypted with AES from received:
