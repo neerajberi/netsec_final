@@ -191,12 +191,32 @@ def Hash_This(hash_input):
     return digest.finalize()
 
 # Calculate HMAC
-#def get_HMAC(data, HKey):
-#   return HMAC
+def get_HMAC(data, HKey):
+    h = hmac.HMAC(HKey, hashes.SHA256(), backend=default_backend())
+    h.update(data)
+    return h.finalize()
 
 # Verify HMAC
-#def Verify_HMAC(data, HMAC, Hkey):
-#   return Boolean (Return True if signatures match, else False)
+def Verify_HMAC(data, recvdhmac, Hkey):
+    h = hmac.HMAC(Hkey, hashes.SHA256(), backend=default_backend())
+    h.update(data)
+    try:
+        h.verify(recvdhmac)
+        return True
+    except:
+        return False
+
+# Verify HMAC and return AES decrypted Plain Text using recvData[1:]
+# hmac_iv_ciphText should be in this format:
+# HMAC 32 bytes | IV 16 bytes | AES encrypted CipherText
+def Verify_HMAC_Decrypt_AES(hmac_iv_ciphText, hmac_key, aes_key):
+    if not Verify_HMAC(hmac_iv_ciphText[32:], hmac_iv_ciphText[:32], hmac_key):
+        print "HMAC verification failed"
+        sys.exit()
+    return Symmetric_Decrypt(hmac_iv_ciphText[48:], aes_key, hmac_iv_ciphText[32:48])
+
+
+
 
 # Retrieves the 8-bit message ID associated with a message ref name
 def Get_Message_ID(message_name):

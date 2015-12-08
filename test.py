@@ -98,11 +98,25 @@ def Test_Serialization():
     else:
         print "Public Key Serialization   : FAILURE"
 
-Test_Sym("1234567890123456789012345678901234567890123456789012345678901234")
-Test_Sym("12345678901234567890123456789012345678901234567")
-Test_Asym("1234567890123456789012345678901234567890123456789012345678901234")
-Test_Asym("12345678901234567890123456789012345678901234567")
-Test_Verify_User()
-Test_Message_ID_Functions()
+def Test_Verify_Hmac():
+    message = urandom(1212)
+    sharedHkey = urandom(32)
+    hmac_Calculated = common.get_HMAC(message,sharedHkey)
+    print "hmac_Calculated = %s" % hmac_Calculated
+    if common.Verify_HMAC(message, hmac_Calculated, sharedHkey):
+        print "HMAC verified"
+    else:
+        print "HMAC failed"
+    print "message = %s" % message
+    print "length HMAC = %s" % len(hmac_Calculated)
+
+
+#Test_Sym("1234567890123456789012345678901234567890123456789012345678901234")
+#Test_Sym("12345678901234567890123456789012345678901234567")
+#Test_Asym("1234567890123456789012345678901234567890123456789012345678901234")
+#Test_Asym("12345678901234567890123456789012345678901234567")
+#Test_Verify_User()
+#Test_Message_ID_Functions()
 #Test_Serialization()
-Test_Challenge()
+#Test_Challenge()
+Test_Verify_Hmac()
