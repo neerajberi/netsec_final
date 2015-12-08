@@ -73,6 +73,22 @@ def Is_User_Authed(ip, port):
             return True
     return False
 
+def Get_User_Details(client_ip, client_port):
+    currentUserDataList = []
+    authdUsersListIndex = ""
+    userFound = False
+    for i in range(0,len(authed_users)):
+        if authed_users[i][1] == client_ip and authed_users[i][2] == client_port:
+            currentUserDataList = authed_users[i]
+            authdUsersListIndex = i
+            userFound = True
+            break
+        else:
+            userFound = False
+    return currentUserDataList, userFound, authdUsersListIndex
+
+
+
 if __name__ == "__main__":
     #list of connected clients (including the server)
     clients = []
@@ -222,7 +238,52 @@ if __name__ == "__main__":
                             # username | IP | Port | Public Key | Shared AES key | Shared HKey | Nonce
                             authed_users.append([client_username, client_ip, client_port, client_public_key, shared_aes, shared_hkey, response_nonce])
                             print "sent acceptance message/added user to list of active, authed users"
+                            # print authed_users
                             continue
+
+                        # Handles list update request from Client
+                        if client_message_id_name == "client_to_server_list_update":
+                            currentUserDataList, userFound, authdUsersListIndex = Get_User_Details(client_ip, client_port)
+                            if userFound == False:
+                                print "Could not find client IP or Port in the authd users list"
+                                continue
+                            hmacRecvd = client_message[:32]
+                            hmacInput = client_message[32:]
+                            shared_hkey = currentUserDataList[5]
+                            shared_aes = currentUserDataList[4]
+                            if common.Verify_HMAC(hmacInput, hmacRecvd, shared_hkey) == False:
+                                print "HMAC verification failed"
+                                continue
+                            recvdClearText = common.Symmetric_Decrypt(hmacInput[16:], shared_aes, hmacInput[:16])
+                            recvdNonce = recvdClearText[:32]
+                            recvdUsername = recvdClearText[32:]
+                            if recvdNonce != common.Increment_Nonce(currentUserDataList[6]):
+                                print "Nonce Verification Failed"
+                                continue
+                            if recvdUsername != currentUserDataList[0]:
+                                print "Username doesn't match the client IP / Port combo"
+                            # HMAC, nonce and username is verified at this point, next we prepare the response
+                            response_nonce = common.Increment_Nonce(recvdNonce)
+                            userListMessage = ""
+                            for i in range(0, len(authed_users)):
+                                userListMessage = ''.join([userListMessage, chr(len(authed_users[i][0])), authed_users[i][0]])
+                            # using chr(0) as a delimiter between user list and number of users
+                            userListMessageWithLength = ''.join([userListMessage, chr(0), str(len(authed_users))])
+                            # print userListMessage
+                            response_plaintext = ''.join([response_nonce, userListMessageWithLength])
+                            # print response_plaintext
+                            response_ciphertext, response_iv = common.Symmetric_Encrypt(response_plaintext, shared_aes)
+                            response_hmacInput = ''.join([response_iv, response_ciphertext])
+                            response_hmac = common.get_HMAC(response_hmacInput, shared_hkey)
+                            response_message_id = common.Get_Message_ID("server_to_client_user_list")
+                            sendData = ''.join([response_message_id, response_hmac, response_hmacInput])
+                            sock.send(sendData)
+                            # updating Nonce to response_Nonce in authed_users
+                            authed_users[authdUsersListIndex][6] = response_nonce
+                            print "sent user list to username = %s" % recvdUsername
+                            continue
+
+
 
                         # ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
                         # THIS IS WHERE ALL THE PROCESSING AND STUFF ACTUALLY HAPPENS
@@ -239,26 +300,3 @@ if __name__ == "__main__":
 
 
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-#

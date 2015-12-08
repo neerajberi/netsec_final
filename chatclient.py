@@ -55,7 +55,7 @@ def Initiate_Login_Sequence(client_private_key):
     #print serialized_pub_key
     username_length = len(username)
     if username_length > 255:
-        return False
+        sys.exit("username supplied was too long")
     clearText = ''.join([Nonce, serialized_pub_key, chr(username_length), username, password])
     tempAESkey = os.urandom(32)
     cipherText, iv = common.Symmetric_Encrypt(clearText, tempAESkey)
@@ -86,7 +86,48 @@ def Initiate_Login_Sequence(client_private_key):
         if clearText[1:33] != common.Increment_Nonce(Nonce):
             sys.exit("Nonce not verified\nReplay Attack Possible\nExiting...")
         print "nonce was good bruh"
-        return clearText
+        return clearText, username
+
+def Ask_Server_For_List(username):
+    nonceServer = common.Increment_Nonce(clientDataTable[1][6])
+    clearText = ''.join([nonceServer, username])
+    cipherText, iv = common.Symmetric_Encrypt(clearText, clientDataTable[1][4])
+    hmacInputData = ''.join([iv, cipherText])
+    hmac = common.get_HMAC(hmacInputData, clientDataTable[1][5])
+    sendData = ''.join([common.Get_Message_ID("client_to_server_list_update"), hmac, hmacInputData])
+    sockClient.send(sendData)
+    clientDataTable[1][6] = nonceServer
+    return
+
+def Receive_and_Display_List():
+    while True:
+        recvData = sockClient.recv(recv_buf)
+        if not recvData:
+            continue
+        if recvData[0:1] != common.Get_Message_ID("server_to_client_user_list"):
+            print "Invalid message ID received from server"
+            sys.exit()
+        recvdPlainText = common.Verify_HMAC_Decrypt_AES(recvData[1:], clientDataTable[1][5], clientDataTable[1][4])
+        if recvdPlainText[:32] != common.Increment_Nonce(clientDataTable[1][6]):
+            print "Nonce failed"
+            sys.exit()
+        clientDataTable[1][6] = recvdPlainText[:32]
+        userListMessageWithLength = recvdPlainText[32:]
+        numUsers = 0
+        listUsers = []
+        index = 0
+        print "Online Users:"
+        while True:
+            usernameLength = ord(userListMessageWithLength[index])
+            if usernameLength == 0:
+                break
+            username = userListMessageWithLength[index+1:index+1+usernameLength]
+            listUsers.append(username)
+            print username
+            index = index + 1 + usernameLength
+        print "number of online users %s" % userListMessageWithLength[index+1:]
+        return listUsers
+
 
 def Add_Row_To_Client_Data_Table(username, IP, Port, PubKey, AESkey, HMACkey, Nonce):
     i = len(clientDataTable)
@@ -153,7 +194,7 @@ if __name__ == "__main__":
 
     ##### Initiate login authorization sequence for this user and get the clear text
     for i in range(0,5):
-        loginReply = Initiate_Login_Sequence(client_private_key)
+        loginReply, username = Initiate_Login_Sequence(client_private_key)
         if loginReply[:1] == chr(1):
             break
         else:
@@ -168,9 +209,33 @@ if __name__ == "__main__":
     Add_Row_To_Client_Data_Table(
         "SERVER", serverIP, serverPort, serialized_serv_pub_key, loginReply[33:65], loginReply[65:97], loginReply[1:33]
     )
-    print "Logged In"
+    print "Logged in as %s" % username
     print "Added Server Details to the database\n"
-    print clientDataTable
+    print "client data table #rows = %s" % len(clientDataTable)
+    ##### At this point User is logged in and the program just waits for user input here
+    ##### which could be either list update or logout or Client to Client messaging
+    ##### So we 'll keep scanning for user input at this time
+
+    print "\nChat Client available commands:"
+    print "list                      : receives updated list of connected users from server"
+    print "logout                    : logs out the current user"
+    print "text <username> <message> : sends message to username "
+
+#    try:
+    while True:
+        prompt()
+        userInput = raw_input()
+        if userInput == "list":
+            Ask_Server_For_List(username)
+            listUsers = Receive_and_Display_List()
+
+
+
+#    except:
+#        print "Invalid Input\nExiting..."
+#        sys.exit()
+
+
 
 
     # Start listening on the socket on a separate thread
