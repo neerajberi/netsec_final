@@ -215,8 +215,12 @@ def Verify_HMAC_Decrypt_AES(hmac_iv_ciphText, hmac_key, aes_key):
         sys.exit()
     return Symmetric_Decrypt(hmac_iv_ciphText[48:], aes_key, hmac_iv_ciphText[32:48])
 
-
-
+# AES Encrypt, concatenate with IV, calculate HMAC and return HMAC_IV_CipherText
+def AES_Encrypt_Add_HMAC(plain_text, aes_key, hmac_key):
+    ciph_text, iv = Symmetric_Encrypt(plain_text, aes_key)
+    hmac_input = ''.join([iv, ciph_text])
+    hmac_calc = get_HMAC(hmac_input, hmac_key)
+    return ''.join([hmac_calc, hmac_input])
 
 # Retrieves the 8-bit message ID associated with a message ref name
 def Get_Message_ID(message_name):
