@@ -222,6 +222,38 @@ def AES_Encrypt_Add_HMAC(plain_text, aes_key, hmac_key):
     hmac_calc = get_HMAC(hmac_input, hmac_key)
     return ''.join([hmac_calc, hmac_input])
 
+# Convert String IP address into 4 byte IP address to be sent over the network
+# input format example = '127.0.0.1'
+# output format example = string of 4 bytes (chr(127) + chr(0) + chr(0) + chr(1)
+def Get_4byte_IP_Address(IPaddress):
+    splitIP = IPaddress.split('.')
+    return ''.join([chr(int(splitIP[0])), chr(int(splitIP[1])), chr(int(splitIP[2])), chr(int(splitIP[3]))])
+
+# Convert the 4byte IP address back into IP string usable with a socket
+# Inverse of above function Get_4byte_IP_Address(IPaddress)
+def Get_String_IP_from_4byte_IP(IPaddress):
+    stringIP = []
+    for i in range(0, 4):
+        stringIP.append(str(ord(IPaddress[i])))
+    return ''.join([stringIP[0], ".", stringIP[1], ".", stringIP[2], ".", stringIP[3]])
+
+# convert Port number into transportable format of 2bytes
+def Get_2byte_Port_Number(intPort):
+    port = []
+    try:
+        port.append(chr(intPort/256))
+        port.append(chr(intPort%256))
+        return ''.join(port)
+    except:
+        print "Error converting port number from int to string"
+        sys.exit()
+
+# Convery Port number into socket usable integer format
+# inverse of above function Get_2byte_Port_Number
+def Get_Integer_Port_from_2byte_Port(port):
+    intPort = ord(port[0])*256 + ord(port[1])
+    return intPort
+
 # Retrieves the 8-bit message ID associated with a message ref name
 def Get_Message_ID(message_name):
     for i in range(0,len(MESSAGE_ID_LIST)):

@@ -137,3 +137,8 @@ Message ID (8bit)	Message ID Friendly name (String)
 00001111			server_to_client_user_list
 00010000			client_to_server_logout
 00010001			client_to_client_logout
+
+
+Improvements:
+1) Cap the list of users in list update message
+2) Add the message ID in Cipher text (before nonce) and compare it with the clear text message ID before processing the incoming message.

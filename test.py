@@ -1,7 +1,7 @@
 from os import urandom
 from cryptography.hazmat.primitives.asymmetric import rsa
 from cryptography.hazmat.backends import default_backend
-import common, chatserver
+import common#, chatserver
 
 # testing symmetric encryption/decryption
 def Test_Sym(input_string):
@@ -110,6 +110,30 @@ def Test_Verify_Hmac():
     print "message = %s" % message
     print "length HMAC = %s" % len(hmac_Calculated)
 
+def Test_Get_4byte_IP_Address():
+    IP = raw_input("Enter IP in string")
+    fourbyteIP = common.Get_4byte_IP_Address(IP)
+    stringIP = common.Get_String_IP_from_4byte_IP(fourbyteIP)
+    print fourbyteIP
+    print stringIP
+    if IP == stringIP:
+        print "IP test passed"
+    else:
+        print "IP test failed"
+    return
+
+def Test_Get_2byte_Port_Number():
+    intPort = input("Eneter an integer smaller than 65536")
+    twoBytePort = common.Get_2byte_Port_Number(intPort)
+    print "Two byte Port = %s" % twoBytePort
+    port = common.Get_Integer_Port_from_2byte_Port(twoBytePort)
+    print "Integer port = %s" % port
+    if intPort == port:
+        print "Port number test passed"
+    else:
+        print "Port number test failed"
+    return
+
 
 #Test_Sym("1234567890123456789012345678901234567890123456789012345678901234")
 #Test_Sym("12345678901234567890123456789012345678901234567")
@@ -119,4 +143,6 @@ def Test_Verify_Hmac():
 #Test_Message_ID_Functions()
 #Test_Serialization()
 #Test_Challenge()
-Test_Verify_Hmac()
+#Test_Verify_Hmac()
+#Test_Get_4byte_IP_Address()
+Test_Get_2byte_Port_Number()
