@@ -114,8 +114,9 @@ def Test_Get_4byte_IP_Address():
     IP = input("Enter IP in string\n+> ")
     fourbyteIP = common.Get_4byte_IP_Address(IP)
     stringIP = common.Get_String_IP_from_4byte_IP(fourbyteIP)
-    print "Four byte IP = " + binascii.hexlify(fourbyteIP)
-    print "stringIP = " + stringIP
+    print "Four byte IP as chars = " + fourbyteIP
+    print "Four byte IP as hex   = " + binascii.hexlify(fourbyteIP)
+    print "stringIP              = " + stringIP
     if IP == stringIP:
         print "4byte IP conversion        : success"
     else:
@@ -125,9 +126,11 @@ def Test_Get_4byte_IP_Address():
 def Test_Get_2byte_Port_Number():
     intPort = input("Enter an integer smaller than 65536\n+> ")
     twoBytePort = common.Get_2byte_Port_Number(intPort)
-    print "Two byte Port = " + binascii.hexlify(twoBytePort)
+    print "Two byte Port as chars = " + twoBytePort
     port = common.Get_Integer_Port_from_2byte_Port(twoBytePort)
-    print "Integer port = %s" % port
+    print "Two byte Port as hex   = " + binascii.hexlify(twoBytePort)
+    port = common.Get_Integer_Port_from_2byte_Port(twoBytePort)
+    print "Integer port           = %s" % port
     if intPort == port:
         print "2byte port conversion      : success"
     else:
