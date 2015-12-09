@@ -104,11 +104,11 @@ def Test_Verify_Hmac():
     hmac_Calculated = common.get_HMAC(message,sharedHkey)
     print "hmac_Calculated = %s" % hmac_Calculated
     if common.Verify_HMAC(message, hmac_Calculated, sharedHkey):
-        print "HMAC verified"
+        print "HMAC verification          : success"
     else:
-        print "HMAC failed"
-    print "message = %s" % message
-    print "length HMAC = %s" % len(hmac_Calculated)
+        print "HMAC verification          : FAILURE"
+    #print "message = %s" % message
+    #print "length HMAC = %s" % len(hmac_Calculated)
 
 def Test_Get_4byte_IP_Address():
     IP = raw_input("Enter IP in string")
@@ -117,9 +117,9 @@ def Test_Get_4byte_IP_Address():
     print fourbyteIP
     print stringIP
     if IP == stringIP:
-        print "IP test passed"
+        print "4byte IP conversion        : success"
     else:
-        print "IP test failed"
+        print "4byte IP conversion        : FAILURE"
     return
 
 def Test_Get_2byte_Port_Number():
@@ -129,9 +129,9 @@ def Test_Get_2byte_Port_Number():
     port = common.Get_Integer_Port_from_2byte_Port(twoBytePort)
     print "Integer port = %s" % port
     if intPort == port:
-        print "Port number test passed"
+        print "2byte port conversion      : success"
     else:
-        print "Port number test failed"
+        print "2byte port conversion      : FAILURE"
     return
 
 
