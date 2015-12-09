@@ -1,7 +1,7 @@
 from os import urandom
 from cryptography.hazmat.primitives.asymmetric import rsa
 from cryptography.hazmat.backends import default_backend
-import common#, chatserver
+import common, binascii#, chatserver
 
 # testing symmetric encryption/decryption
 def Test_Sym(input_string):
@@ -91,7 +91,7 @@ def Test_Serialization():
     public_key = private_key.public_key()
     serialized_pub_key = common.Serialize_Pub_Key(public_key)
     #print serialized_pub_key
-    # I guess this isnt working because the public key OBJECT has data other 
+    # I guess this isnt working because the public key OBJECT has data other
     # than that which is stored in serialized version.
     if (public_key == common.Deserialize_Pub_Key(serialized_pub_key)):
         print "Public Key Serialization   : success"
@@ -123,9 +123,9 @@ def Test_Get_4byte_IP_Address():
     return
 
 def Test_Get_2byte_Port_Number():
-    intPort = input("Eneter an integer smaller than 65536")
+    intPort = input("Enter an integer smaller than 65536\n+> ")
     twoBytePort = common.Get_2byte_Port_Number(intPort)
-    print "Two byte Port = %s" % twoBytePort
+    print "Two byte Port = " + binascii.hexlify(twoBytePort)
     port = common.Get_Integer_Port_from_2byte_Port(twoBytePort)
     print "Integer port = %s" % port
     if intPort == port:
