@@ -111,11 +111,11 @@ def Test_Verify_Hmac():
     #print "length HMAC = %s" % len(hmac_Calculated)
 
 def Test_Get_4byte_IP_Address():
-    IP = raw_input("Enter IP in string")
+    IP = input("Enter IP in string\n+> ")
     fourbyteIP = common.Get_4byte_IP_Address(IP)
     stringIP = common.Get_String_IP_from_4byte_IP(fourbyteIP)
-    print fourbyteIP
-    print stringIP
+    print "Four byte IP = " + binascii.hexlify(fourbyteIP)
+    print "stringIP = " + stringIP
     if IP == stringIP:
         print "4byte IP conversion        : success"
     else:
@@ -144,5 +144,5 @@ def Test_Get_2byte_Port_Number():
 #Test_Serialization()
 #Test_Challenge()
 #Test_Verify_Hmac()
-#Test_Get_4byte_IP_Address()
+Test_Get_4byte_IP_Address()
 Test_Get_2byte_Port_Number()
