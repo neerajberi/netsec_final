@@ -111,7 +111,7 @@ def Test_Verify_Hmac():
     #print "length HMAC = %s" % len(hmac_Calculated)
 
 def Test_Get_4byte_IP_Address():
-    IP = input("Enter IP in string\n+> ")
+    IP = raw_input("Enter IP in string\n+> ")
     fourbyteIP = common.Get_4byte_IP_Address(IP)
     stringIP = common.Get_String_IP_from_4byte_IP(fourbyteIP)
     print "Four byte IP as chars = " + fourbyteIP
