@@ -73,9 +73,10 @@ def Is_User_Authed(ip, port):
             return True
     return False
 
-def Get_User_Details(client_ip, client_port):
+#
+def Get_User_Data_with_ip_port(client_ip, client_port):
     currentUserDataList = []
-    authdUsersListIndex = ""
+    authdUsersListIndex = 0
     userFound = False
     for i in range(0,len(authed_users)):
         if authed_users[i][1] == client_ip and authed_users[i][2] == client_port:
@@ -87,6 +88,19 @@ def Get_User_Details(client_ip, client_port):
             userFound = False
     return currentUserDataList, userFound, authdUsersListIndex
 
+def Get_User_Data_With_Username(recvdUsername):
+    currentUserDataList = []
+    authdUsersListIndex = 0
+    userFound = False
+    for i in range(0,len(authed_users)):
+        if authed_users[i][0] == recvdUsername:
+            currentUserDataList = authed_users[i]
+            authdUsersListIndex = i
+            userFound = True
+            break
+        else:
+            userFound = False
+    return currentUserDataList, userFound, authdUsersListIndex
 
 
 if __name__ == "__main__":
@@ -125,6 +139,7 @@ if __name__ == "__main__":
                 # accept the new connection and add it to the connection list
                 new_sock, address = serv_sock.accept()
                 clients.append(new_sock)
+                print clients
                 print "Client " + str(address) + " has connected."
                 # let everyone know that a new member has joined the chat
                 # broadcast(new_sock, "New member! Everyone say hi to: " + str(address))
@@ -201,10 +216,11 @@ if __name__ == "__main__":
                             plaintext = common.Symmetric_Decrypt(ciphertext, unencrypted_AES_key, iv)
                             #print "---------start plaintext---------\n" + plaintext + "\n---------end plaintext---------"
                             client_nonce          = plaintext[    :  32]
-                            client_public_key     = plaintext[32  : 483]
-                            client_usernamelength = plaintext[483 : 484]
-                            client_username       = plaintext[484 : 484+ord(client_usernamelength)]
-                            client_password       = plaintext[484+ord(client_usernamelength) : ]
+                            client_ListenPort     = plaintext[32  :  34]
+                            client_public_key     = plaintext[34  : 485]
+                            client_usernamelength = plaintext[485 : 486]
+                            client_username       = plaintext[486 : 486+ord(client_usernamelength)]
+                            client_password       = plaintext[486+ord(client_usernamelength) : ]
                             #print "client_nonce: \"" + binascii.hexlify(client_nonce) + "\""
                             #print "client public key:\n" + client_public_key
                             #print "client username length: \"" + str(ord(client_usernamelength)) + "\""
@@ -235,15 +251,17 @@ if __name__ == "__main__":
                             response_signedHash = common.Get_Signed_Hash(response_superCipherText, serv_pri_key)
                             sendData = "".join([response_message_id, response_signedHash, response_superCipherText])
                             sock.send(sendData)
-                            # username | IP | Port | Public Key | Shared AES key | Shared HKey | Nonce
-                            authed_users.append([client_username, client_ip, client_port, client_public_key, shared_aes, shared_hkey, response_nonce])
+                            # username | IP | Port | Public Key | Shared AES key | Shared HKey | Nonce | socket | Listen port
+                            authed_users.append(
+                                [client_username, client_ip, client_port, client_public_key, shared_aes, shared_hkey, response_nonce, sock, common.Get_Integer_Port_from_2byte_Port(client_ListenPort)]
+                            )
                             print "sent acceptance message/added user to list of active, authed users"
                             # print authed_users
                             continue
 
                         # Handles list update request from Client
                         if client_message_id_name == "client_to_server_list_update":
-                            currentUserDataList, userFound, authdUsersListIndex = Get_User_Details(client_ip, client_port)
+                            currentUserDataList, userFound, authdUsersListIndex = Get_User_Data_with_ip_port(client_ip, client_port)
                             if userFound == False:
                                 print "Could not find client IP or Port in the authd users list"
                                 continue
@@ -262,6 +280,7 @@ if __name__ == "__main__":
                                 continue
                             if recvdUsername != currentUserDataList[0]:
                                 print "Username doesn't match the client IP / Port combo"
+                                continue
                             # HMAC, nonce and username is verified at this point, next we prepare the response
                             response_nonce = common.Increment_Nonce(recvdNonce)
                             userListMessage = ""
@@ -281,6 +300,73 @@ if __name__ == "__main__":
                             # updating Nonce to response_Nonce in authed_users
                             authed_users[authdUsersListIndex][6] = response_nonce
                             print "sent user list to username = %s" % recvdUsername
+                            continue
+
+                        ##################### Handles the client to client communication ##################
+                        # Handles the Client1 request to server to initiate communication with client2 and sends a headsup to Client2
+                        if client_message_id_name == "client1_request_to_server_for_client2":
+                            A1UserDataList, A1userFound, A1authdUsersListIndex = Get_User_Data_with_ip_port(client_ip, client_port)
+                            if A1userFound == False:
+                                print "Could not find source client IP or Port in the authd users list"
+                                continue
+                            recvdClearText = common.Verify_HMAC_Decrypt_AES(client_message, A1UserDataList[5], A1UserDataList[4])
+                            print recvdClearText
+                            A1recvdNonce = recvdClearText[:32]
+                            if A1recvdNonce != common.Increment_Nonce(A1UserDataList[6]):
+                                print "Nonce Verification Failed"
+                                continue
+                            recvdA1Username = recvdClearText[33:33+ord(recvdClearText[32])]
+                            if recvdA1Username != A1UserDataList[0]:
+                                print "Username doesn't match the client IP / Port combo"
+                                continue
+                            # HMAC, nonce and username is verified at this point, next we need to verify A2 username in authed user list
+                            authed_users[A1authdUsersListIndex][6] = A1recvdNonce
+                            A1UserDataList[6] = A1recvdNonce
+                            print recvdA1Username
+                            recvdA2Username = recvdClearText[34+len(recvdA1Username):33+len(recvdA1Username)+ord(recvdClearText[32+len(recvdA1Username)])]
+                            print recvdA2Username
+                            A2UserDataList, A2userFound, A2authdUsersListIndex = Get_User_Data_With_Username(recvdA2Username)
+                            if not A2userFound:
+                                print "Target user %s not in authed user list" % recvdA2Username
+                                continue
+                            A2sendClearText = ''.join(
+                                [common.Increment_Nonce(A2UserDataList[6]), common.Get_4byte_IP_Address(A1UserDataList[1]), common.Get_2byte_Port_Number(A1UserDataList[8]), A1UserDataList[3], recvdA1Username]
+                            )
+                            print A2sendClearText
+                            A2HmacAppendedCipherText = common.AES_Encrypt_Add_HMAC(A2sendClearText, A2UserDataList[4], A2UserDataList[5])
+                            A2sendData = ''.join([common.Get_Message_ID("server_sends_info_to_client2"), A2HmacAppendedCipherText])
+                            sockA2 = A2UserDataList[7]
+                            sockA2.send(A2sendData)
+                            authed_users[A2authdUsersListIndex][6] = common.Increment_Nonce(A2UserDataList[6])
+                            continue
+
+                            # Handles the Client2 response and sends a confirmation back to client1
+                        if client_message_id_name == "client2_reply_to_server":
+                            A2UserDataList, A2userFound, A2authdUsersListIndex = Get_User_Data_with_ip_port(client_ip, client_port)
+                            if A2userFound == False:
+                                print "Could not find source client IP or Port in the authd users list"
+                                continue
+                            recvdClearText = common.Verify_HMAC_Decrypt_AES(client_message, A2UserDataList[5], A2UserDataList[4])
+                            A2recvdNonce = recvdClearText[:32]
+                            if A2recvdNonce != common.Increment_Nonce(A2UserDataList[6]):
+                                print "Nonce Verification Failed"
+                                continue
+                            authed_users[A2authdUsersListIndex][6] = A2recvdNonce
+                            A2UserDataList[6] = A2recvdNonce
+                            recvdA1Username = recvdClearText[32:]
+                            A1UserDataList, A1userFound, A1authdUsersListIndex = Get_User_Data_With_Username(recvdA1Username)
+                            if A1userFound == False:
+                                print "Source user specified not in authed user list"
+                                print authed_users
+                                continue
+                            A1sendPlainText = ''.join(
+                                [common.Increment_Nonce(A1UserDataList[6]), common.Get_4byte_IP_Address(A2UserDataList[1]), common.Get_2byte_Port_Number(A2UserDataList[8]), A2UserDataList[3], A2UserDataList[0]]
+                            )
+                            A1HmacAppendedCipherText = common.AES_Encrypt_Add_HMAC(A1sendPlainText, A1UserDataList[4], A1UserDataList[5])
+                            A1sendData = ''.join([common.Get_Message_ID("server_reply_to_client1"), A1HmacAppendedCipherText])
+                            sockA1 = A1UserDataList[7]
+                            sockA1.send(A1sendData)
+                            authed_users[A1authdUsersListIndex][6] = common.Increment_Nonce(A1UserDataList[6])
                             continue
 
 
