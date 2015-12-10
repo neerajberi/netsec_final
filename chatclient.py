@@ -12,9 +12,9 @@ def prompt():
 # This functions implements the login challenge sequence
 def Request_For_Login():
     sent_solution = False
-    print "login request messageID = %s" % common.Get_Message_ID("login_request")
+    #print "login request messageID = %s" % common.Get_Message_ID("login_request")
     sockClient.send(common.Get_Message_ID("login_request"))
-    print "sent challenge request"
+    #print "sent challenge request"
     # RETURN FALSE IF IT TAKES OVER A MINUTE TO DO THIS, do a while that breaks after a certain time
     # ALSO WRAP THIS IN A TRY CATCH FOR SOCKET TIMEOUTS
     # timeout_start = time.time() ---- could be used for timeout on listening socket
@@ -33,13 +33,10 @@ def Request_For_Login():
                 hash_input = recvData[1:15]
                 hash_output = recvData[15:]
                 solution = common.Solve_Challenge(hash_output, hash_input)
-                print("solved it!")
                 sendData = ''.join([common.Get_Message_ID("challenge_response"), solution])
                 sockClient.send(sendData)
-                print("solution sent")
                 sent_solution = True
             if recvData[:1] == common.Get_Message_ID("challenge_result"):
-                print("CAN SEND PASS")
                 return True
     return False
 
@@ -48,12 +45,8 @@ def Initiate_Login_Sequence(client_private_key):
     username = raw_input("Enter username:\n")
     password = raw_input("Enter password:\n")
     Nonce = os.urandom(32)
-    #print Nonce
     serialized_pri_key = common.Serialize_Pri_Key(client_private_key)
     serialized_pub_key = common.Serialize_Pub_Key(client_private_key.public_key())
-    print "length of pub key sent to server = %s" % len(serialized_pub_key)
-    #print serialized_pri_key
-    #print serialized_pub_key
     username_length = len(username)
     if username_length > 255:
         sys.exit("username supplied was too long")
@@ -66,11 +59,6 @@ def Initiate_Login_Sequence(client_private_key):
     messageID = common.Get_Message_ID("user_login")
     sendData = ''.join([messageID, signedHash, superCipherText])
     sockClient.send(sendData)
-    print "sent the user/pass combo!"
-    #print encryptedAESkey
-    #print "length of encrypted hash = %s" % len(signedHash)
-    #print "length of IV = %s" % len(iv)
-    #print "length of encAESkey = %s" % len(encryptedAESkey)
     while True:
         recvData = sockClient.recv(recv_buf)
         if not recvData:
@@ -86,7 +74,6 @@ def Initiate_Login_Sequence(client_private_key):
         clearText = common.Symmetric_Decrypt(cipherText, tempAESkey, iv)
         if clearText[1:33] != common.Increment_Nonce(Nonce):
             sys.exit("Nonce not verified\nReplay Attack Possible\nExiting...")
-        print "nonce was good bruh"
         return clearText, username
 
 def Ask_Server_For_List(username):
@@ -110,7 +97,7 @@ def Receive_and_Display_List(recvdMessage):
         numUsers = 0
         listUsers = []
         index = 0
-        print "Online Users:"
+        print "Online Users: (" + userListMessageWithLength[index+1:] + ")"
         while True:
             usernameLength = ord(userListMessageWithLength[index])
             if usernameLength == 0:
@@ -119,7 +106,6 @@ def Receive_and_Display_List(recvdMessage):
             listUsers.append(username)
             print username
             index = index + 1 + usernameLength
-        print "number of online users %s" % userListMessageWithLength[index+1:]
         return listUsers
 
 def Client_Key_Exchange_Request_to_Server(userInput, username):
@@ -166,19 +152,18 @@ def Get_User_Data_With_Socket(recvdSocket):
 def SendMessagetoA2(A1A2MESSAGE, loggedInUsername, A2UserDataList, A2clientTableListIndex):
     sendNonce = common.Increment_Nonce(A2UserDataList[6])
     sendTimeStamp = str(int(time.time()))
-    print sendNonce
-    print sendTimeStamp
-    print chr(len(loggedInUsername))
-    print loggedInUsername
-    print A1A2MESSAGE
+    #print sendNonce
+    #print sendTimeStamp
+    #print chr(len(loggedInUsername))
+    #print loggedInUsername
+    #print A1A2MESSAGE
     sendPlainText = ''.join([sendNonce, sendTimeStamp, chr(len(loggedInUsername)), loggedInUsername, A1A2MESSAGE])
     sendData = ''.join(
         [common.Get_Message_ID("A1_to_A2_send_message"), common.AES_Encrypt_Add_HMAC(sendPlainText, A2UserDataList[4], A2UserDataList[5])]
     )
-    # print sendPlainText
     A2UserDataList[7].send(sendData)
     clientDataTable[A2clientTableListIndex][6] = sendNonce
-    print "sent \"%s\" to %s" % (A1A2MESSAGE, A2UserDataList[0])
+    #print "sent \"%s\" to %s" % (A1A2MESSAGE, A2UserDataList[0])
     return
 
 def A1A2KeyExchange(A2UserDataList):
@@ -195,7 +180,7 @@ def A1A2KeyExchange(A2UserDataList):
     try:
         A2sock.connect((A2UserDataList[1], A2UserDataList[2]))
         allSockets.append(A2sock)
-        print "socket connected to %s" % A2UserDataList[0]
+        #print "socket connected to %s" % A2UserDataList[0]
         A2sock.send(sendData)
         A2UserDataList, A2UserFound, A2clientTableListIndex = Get_User_Data_With_Username(A2UserDataList[0])
         clientDataTable[A2clientTableListIndex][4] = A1A2_AES_Key
@@ -309,7 +294,7 @@ def Keep_Listening():
                         continue
                     if recvdMessageID == common.Get_Message_ID("A1_to_A2_send_message"):
                         A1UserDataList, A1UserFound, A1clientTableListIndex = Get_User_Data_With_Socket(sock)
-                        print "received A1 to A2 message from %s on socket = %s" % (A1UserDataList[0], sock)
+                        #print "received A1 to A2 message from %s on socket = %s" % (A1UserDataList[0], sock)
                         A1recvdPlainText = common.Verify_HMAC_Decrypt_AES(recvdMessage, A1UserDataList[5], A1UserDataList[4])
                         if A1recvdPlainText[:32] != common.Increment_Nonce(A1UserDataList[6]):
                             print "Nonce Verification Failed in A1 to A2 send message"
@@ -320,24 +305,25 @@ def Keep_Listening():
                         A1recvdTimeStamp = time.ctime(int(A1recvdPlainText[32:42]))
                         A1recvdUsername = A1recvdPlainText[43:43+ord(A1recvdPlainText[42])]
                         A1recvdMessage = A1recvdPlainText[43+ord(A1recvdPlainText[42]):]
-                        print "<%s> <%s>: %s" % (A1recvdTimeStamp, A1recvdUsername, A1recvdMessage)
+                        print "\n<%s> <%s>: %s" % (A1recvdTimeStamp, A1recvdUsername, A1recvdMessage)
+                        prompt()
                         A1responsePlainText = common.Increment_Nonce(clientDataTable[A1clientTableListIndex][6])
                         A1responseCipherText = common.AES_Encrypt_Add_HMAC(A1responsePlainText, A1UserDataList[4], A1UserDataList[5])
                         sendData = ''.join([common.Get_Message_ID("A2_to_A1_send_message"), A1responseCipherText])
                         sock.send(sendData)
-                        print "sent Ack back to %s on socket = %s" % (A1UserDataList[0], A1UserDataList[7])
+                        #print "sent Ack back to %s on socket = %s" % (A1UserDataList[0], A1UserDataList[7])
                         clientDataTable[A1clientTableListIndex][6] = common.Increment_Nonce(clientDataTable[A1clientTableListIndex][6])
                         continue
                     if recvdMessageID == common.Get_Message_ID("A2_to_A1_send_message"):
-                        print "Test A2 to A1 send message start"
+                        #print "Test A2 to A1 send message start"
                         A2UserDataList, A2UserFound, A2clientTableListIndex = Get_User_Data_With_Socket(sock)
                         A2recvdPlainText = common.Verify_HMAC_Decrypt_AES(recvdMessage, A2UserDataList[5], A2UserDataList[4])
                         if A2recvdPlainText[:32] != common.Increment_Nonce(A2UserDataList[6]):
                             print "Nonce Verification Failed in A2 to A1 message Ack"
                             continue
                         clientDataTable[A2clientTableListIndex][6] = common.Increment_Nonce(clientDataTable[A2clientTableListIndex][6])
-                        print "Received Nonce from A2 in ack = %s" % clientDataTable[A2clientTableListIndex][6]
-                        print "Ack received"
+                        #print "Received Nonce from A2 in ack = %s" % clientDataTable[A2clientTableListIndex][6]
+                        #print "Ack received"
                         continue
 
 
@@ -408,7 +394,7 @@ if __name__ == "__main__":
         print "Check connection parameters."
         print "usage: chatclient.py -sip <IP Address> -sp <Port>"
         sys.exit()
-    print "Connected!"
+    #print "Connected!"
 
     ##### Initiate login challenge sequence and exit if failed
     if Request_For_Login() == False:
@@ -431,16 +417,16 @@ if __name__ == "__main__":
                 sys.exit("Incorrect username or password\nAll attempts exhausted\nExiting...")
             else:
                 print "Incorrect username or password\nPlease try again (Remaining Attempts = %s)" % (4-i)
-    print "credentials accepted!"
+    #print "credentials accepted!"
     ##### Store the values in clientDataTable
     ##### login reply format:
     ##### YES/NO (1 byte) | Nonce+1 (32 bytes) | AES symmetric key (32 bytes) | HMAC symmetric key (32 bytes)
     Add_Row_To_Client_Data_Table(
         "SERVER", serverIP, serverPort, serialized_serv_pub_key, loginReply[33:65], loginReply[65:97], loginReply[1:33], sockClient
     )
-    print "Logged in as %s" % username
-    print "Added Server Details to the database\n"
-    print "client data table #rows = %s" % len(clientDataTable)
+    #print "Logged in as %s" % username
+    #print "Added Server Details to the database\n"
+    #print "client data table #rows = %s" % len(clientDataTable)
     ##### At this point User is logged in and the program just waits for user input here
     ##### which could be either list update or logout or Client to Client messaging
     ##### So we 'll keep scanning for user input at this time
@@ -481,7 +467,7 @@ if __name__ == "__main__":
                     else:
                         break
             # print A2UserDataList
-            print "length of client data table = %s" % len(clientDataTable)
+            #print "length of client data table = %s" % len(clientDataTable)
             # print clientDataTable
             if A2UserFound and A2UserDataList[4] != "":
                 SendMessagetoA2(A1A2MESSAGE, loggedInUsername, A2UserDataList, A2clientTableListIndex)
@@ -492,7 +478,7 @@ if __name__ == "__main__":
             # while time.time() < timeout_start + timeout:
         elif userInput == "print":
             print "length of client data table = %s" % len(clientDataTable)
-            # print clientDataTable
+            print clientDataTable
         elif userInput == "help":
             Print_Syntax()
         else:

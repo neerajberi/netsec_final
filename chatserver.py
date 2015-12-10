@@ -140,7 +140,6 @@ if __name__ == "__main__":
                 new_sock, address = serv_sock.accept()
                 clients.append(new_sock)
                 # print clients
-                print "Client " + str(address) + " has connected."
                 # let everyone know that a new member has joined the chat
                 # broadcast(new_sock, "New member! Everyone say hi to: " + str(address))
             else:
@@ -155,43 +154,44 @@ if __name__ == "__main__":
 
                         client_ip              = sock.getpeername()[0]
                         client_port            = sock.getpeername()[1]
-                        print "client info <" + str(client_ip) + ":" + str(client_port) + ">"
+                        #print "client info <" + str(client_ip) + ":" + str(client_port) + ">"
                         client_message_id      = data[:1]
                         client_message_id_name = common.Get_Message_Name(client_message_id)
                         client_message         = data[1:]
-                        print "client message: " + client_message_id_name
+                        #print "client message: " + client_message_id_name
 
                         # Challenge request handling
                         if client_message_id_name == 'login_request':
-                            print("login requested")
+                            #print("login requested")
                             if Is_User_Challenged(client_ip, client_port) or Can_User_Auth(client_ip, client_port) or Is_User_Authed(client_ip, client_port):
                                 continue
-                            print("user has not been authed or sent a challenge")
+                            #print("user has not been authed or sent a challenge")
                             challenge_out, challenge_in = common.Create_Challenge()
-                            print("adding user to list of challenged")
+                            #print("adding user to list of challenged")
                             users_challenged.append([client_ip, client_port, challenge_out])
                             message_to_client = ''.join([common.Get_Message_ID("challenge_to_client"), challenge_in, challenge_out])
-                            print("sending challenge")
+                            #print("sending challenge")
                             sock.send(message_to_client)
-                            print("sent challenge")
+                            #print("sent challenge")
                             continue
 
                         # Challenge response handling
                         if client_message_id_name == 'challenge_response':
-                            print "got a solution!"
+                            #print "got a solution!"
                             if (not Is_User_Challenged(client_ip, client_port)) or Can_User_Auth(client_ip, client_port) or Is_User_Authed(client_ip, client_port):
                                 continue
-                            print("user has not been authed and has been sent a challenge")
-                            print "user challenged list"
-                            print users_challenged
+                            #print("user has not been authed and has been sent a challenge")
+                            #print "user challenged list"
+                            #print users_challenged
                             challenge_output = Get_Challenge_Out(client_ip, client_port)
                             if common.Verify_Challenge_Solution(client_message, challenge_output):
-                                print "solution checks out!"
+                                #print "solution checks out!"
                                 users_can_send_pass.append([client_ip, client_port])
                                 users_challenged.remove([client_ip, client_port, challenge_output])
                                 sock.send(common.Get_Message_ID('challenge_result'))
+                                print "Client " + str(address) + " has connected."
                             else:
-                                print "solution doesn't check out!"
+                                print "Client " + str(address) + " failed the challenge."
                                 continue
 
                         # Verifies the user login request
@@ -241,7 +241,7 @@ if __name__ == "__main__":
                                 sock.send(sendData)
                                 print "invalid user/signature sending \"bad\" response"
                                 continue
-                            print "user+signature verified! more to come!"
+                            #print "user+signature verified! more to come!"
                             yes_or_no = chr(1)
                             shared_aes  = os.urandom(32)
                             shared_hkey = os.urandom(32)
@@ -255,7 +255,8 @@ if __name__ == "__main__":
                             authed_users.append(
                                 [client_username, client_ip, client_port, client_public_key, shared_aes, shared_hkey, response_nonce, sock, common.Get_Integer_Port_from_2byte_Port(client_ListenPort)]
                             )
-                            print "sent acceptance message/added user to list of active, authed users"
+                            print "User \"" + client_username + "\" has authenticated from " + str(address) + "."
+                            #print "sent acceptance message/added user to list of active, authed users"
                             # print authed_users
                             continue
 
@@ -310,7 +311,7 @@ if __name__ == "__main__":
                                 print "Could not find source client IP or Port in the authd users list"
                                 continue
                             recvdClearText = common.Verify_HMAC_Decrypt_AES(client_message, A1UserDataList[5], A1UserDataList[4])
-                            print recvdClearText
+                            #print recvdClearText
                             A1recvdNonce = recvdClearText[:32]
                             if A1recvdNonce != common.Increment_Nonce(A1UserDataList[6]):
                                 print "Nonce Verification Failed"
@@ -322,9 +323,9 @@ if __name__ == "__main__":
                             # HMAC, nonce and username is verified at this point, next we need to verify A2 username in authed user list
                             authed_users[A1authdUsersListIndex][6] = A1recvdNonce
                             A1UserDataList[6] = A1recvdNonce
-                            print recvdA1Username
+                            #print recvdA1Username
                             recvdA2Username = recvdClearText[34+len(recvdA1Username):33+len(recvdA1Username)+ord(recvdClearText[32+len(recvdA1Username)])]
-                            print recvdA2Username
+                            #print recvdA2Username
                             A2UserDataList, A2userFound, A2authdUsersListIndex = Get_User_Data_With_Username(recvdA2Username)
                             if not A2userFound:
                                 print "Target user %s not in authed user list" % recvdA2Username
@@ -332,12 +333,13 @@ if __name__ == "__main__":
                             A2sendClearText = ''.join(
                                 [common.Increment_Nonce(A2UserDataList[6]), common.Get_4byte_IP_Address(A1UserDataList[1]), common.Get_2byte_Port_Number(A1UserDataList[8]), A1UserDataList[3], recvdA1Username]
                             )
-                            print A2sendClearText
+                            #print A2sendClearText
                             A2HmacAppendedCipherText = common.AES_Encrypt_Add_HMAC(A2sendClearText, A2UserDataList[4], A2UserDataList[5])
                             A2sendData = ''.join([common.Get_Message_ID("server_sends_info_to_client2"), A2HmacAppendedCipherText])
                             sockA2 = A2UserDataList[7]
                             sockA2.send(A2sendData)
                             authed_users[A2authdUsersListIndex][6] = common.Increment_Nonce(A2UserDataList[6])
+                            print "User \"" + recvdA1Username + "\" is trying to set up a key with \"" + recvdA2Username + "\"."
                             continue
 
                             # Handles the Client2 response and sends a confirmation back to client1
@@ -382,7 +384,3 @@ if __name__ == "__main__":
                 #    clients.remove(sock)
                 #    continue
     serv_sock.close()
-
-
-
-
