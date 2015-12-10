@@ -10,11 +10,12 @@ from cryptography.hazmat.primitives.asymmetric import rsa
 from cryptography.hazmat.primitives.asymmetric import padding
 
 def Increment_Nonce(nonce_input):
-    hex_nonce = binascii.hexlify(nonce_input)
+    hex_nonce = nonce_input.encode('hex')
     int_nonce = int(hex_nonce,16)
     inc_nonce = int_nonce + 1
-    hex_inc_nonce = hex(inc_nonce)
-    inc_nonce_bytes = binascii.unhexlify((hex_inc_nonce[2:])[:-1])
+    hex_inc_nonce = hex(inc_nonce).rstrip("L").lstrip("0x")
+    padded_hex_inc_nonce = hex_inc_nonce.zfill(64)
+    inc_nonce_bytes = padded_hex_inc_nonce.decode('hex')
     return inc_nonce_bytes
 
 # creates a challenge. returns the first 32 bits of the hash and the first 112

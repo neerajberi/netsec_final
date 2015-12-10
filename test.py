@@ -138,6 +138,12 @@ def Test_Get_2byte_Port_Number():
     return
 
 
+def Test_Nonce_Incrementation():
+    noncewow = urandom(32)
+    print binascii.hexlify(noncewow)
+    Incremented_nonce = common.Increment_Nonce(noncewow)
+    print binascii.hexlify(Incremented_nonce)
+
 #Test_Sym("1234567890123456789012345678901234567890123456789012345678901234")
 #Test_Sym("12345678901234567890123456789012345678901234567")
 #Test_Asym("1234567890123456789012345678901234567890123456789012345678901234")
@@ -147,5 +153,6 @@ def Test_Get_2byte_Port_Number():
 #Test_Serialization()
 #Test_Challenge()
 #Test_Verify_Hmac()
-Test_Get_4byte_IP_Address()
-Test_Get_2byte_Port_Number()
+#Test_Get_4byte_IP_Address()
+#Test_Get_2byte_Port_Number()
+Test_Nonce_Incrementation()
