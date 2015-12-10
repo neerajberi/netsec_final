@@ -175,7 +175,7 @@ def SendMessagetoA2(A1A2MESSAGE, loggedInUsername, A2UserDataList, A2clientTable
     sendData = ''.join(
         [common.Get_Message_ID("A1_to_A2_send_message"), common.AES_Encrypt_Add_HMAC(sendPlainText, A2UserDataList[4], A2UserDataList[5])]
     )
-    print sendPlainText
+    # print sendPlainText
     A2UserDataList[7].send(sendData)
     clientDataTable[A2clientTableListIndex][6] = sendNonce
     print "sent \"%s\" to %s" % (A1A2MESSAGE, A2UserDataList[0])
@@ -194,6 +194,7 @@ def A1A2KeyExchange(A2UserDataList):
     A2sock = A2UserDataList[7]
     try:
         A2sock.connect((A2UserDataList[1], A2UserDataList[2]))
+        allSockets.append(A2sock)
         print "socket connected to %s" % A2UserDataList[0]
         A2sock.send(sendData)
         A2UserDataList, A2UserFound, A2clientTableListIndex = Get_User_Data_With_Username(A2UserDataList[0])
@@ -213,6 +214,7 @@ def A1A2KeyExchange(A2UserDataList):
                     break
                 clientDataTable[A2clientTableListIndex][6] = A2recvdNonce
                 break
+
     except:
         print "Something is wrong with the client 2 connection\nA1A2 key exchange failed"
     return
@@ -307,7 +309,7 @@ def Keep_Listening():
                         continue
                     if recvdMessageID == common.Get_Message_ID("A1_to_A2_send_message"):
                         A1UserDataList, A1UserFound, A1clientTableListIndex = Get_User_Data_With_Socket(sock)
-                        print "received A1 to A2 message from %s" % A1UserDataList[0]
+                        print "received A1 to A2 message from %s on socket = %s" % (A1UserDataList[0], sock)
                         A1recvdPlainText = common.Verify_HMAC_Decrypt_AES(recvdMessage, A1UserDataList[5], A1UserDataList[4])
                         if A1recvdPlainText[:32] != common.Increment_Nonce(A1UserDataList[6]):
                             print "Nonce Verification Failed in A1 to A2 send message"
@@ -323,7 +325,19 @@ def Keep_Listening():
                         A1responseCipherText = common.AES_Encrypt_Add_HMAC(A1responsePlainText, A1UserDataList[4], A1UserDataList[5])
                         sendData = ''.join([common.Get_Message_ID("A2_to_A1_send_message"), A1responseCipherText])
                         sock.send(sendData)
+                        print "sent Ack back to %s on socket = %s" % (A1UserDataList[0], A1UserDataList[7])
                         clientDataTable[A1clientTableListIndex][6] = common.Increment_Nonce(clientDataTable[A1clientTableListIndex][6])
+                        continue
+                    if recvdMessageID == common.Get_Message_ID("A2_to_A1_send_message"):
+                        print "Test A2 to A1 send message start"
+                        A2UserDataList, A2UserFound, A2clientTableListIndex = Get_User_Data_With_Socket(sock)
+                        A2recvdPlainText = common.Verify_HMAC_Decrypt_AES(recvdMessage, A2UserDataList[5], A2UserDataList[4])
+                        if A2recvdPlainText[:32] != common.Increment_Nonce(A2UserDataList[6]):
+                            print "Nonce Verification Failed in A2 to A1 message Ack"
+                            continue
+                        clientDataTable[A2clientTableListIndex][6] = common.Increment_Nonce(clientDataTable[A2clientTableListIndex][6])
+                        print "Received Nonce from A2 in ack = %s" % clientDataTable[A2clientTableListIndex][6]
+                        print "Ack received"
                         continue
 
 
@@ -436,6 +450,7 @@ if __name__ == "__main__":
     Print_Syntax()
 #    try:
     while True:
+        time.sleep(0.1)
         prompt()
         # Gets all of the sockets that are ready
         userInput = raw_input()
@@ -465,9 +480,9 @@ if __name__ == "__main__":
                         continue
                     else:
                         break
-            print A2UserDataList
-            print len(clientDataTable)
-            print clientDataTable
+            # print A2UserDataList
+            print "length of client data table = %s" % len(clientDataTable)
+            # print clientDataTable
             if A2UserFound and A2UserDataList[4] != "":
                 SendMessagetoA2(A1A2MESSAGE, loggedInUsername, A2UserDataList, A2clientTableListIndex)
 
@@ -476,8 +491,8 @@ if __name__ == "__main__":
             # timeout = 10 # in seconds
             # while time.time() < timeout_start + timeout:
         elif userInput == "print":
-            print "number of rows = %s" % len(clientDataTable)
-            print clientDataTable
+            print "length of client data table = %s" % len(clientDataTable)
+            # print clientDataTable
         elif userInput == "help":
             Print_Syntax()
         else:

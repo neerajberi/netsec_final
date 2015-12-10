@@ -139,7 +139,7 @@ if __name__ == "__main__":
                 # accept the new connection and add it to the connection list
                 new_sock, address = serv_sock.accept()
                 clients.append(new_sock)
-                print clients
+                # print clients
                 print "Client " + str(address) + " has connected."
                 # let everyone know that a new member has joined the chat
                 # broadcast(new_sock, "New member! Everyone say hi to: " + str(address))
@@ -357,7 +357,7 @@ if __name__ == "__main__":
                             A1UserDataList, A1userFound, A1authdUsersListIndex = Get_User_Data_With_Username(recvdA1Username)
                             if A1userFound == False:
                                 print "Source user specified not in authed user list"
-                                print authed_users
+                                print "length of authed users list = %s" % len(authed_users)
                                 continue
                             A1sendPlainText = ''.join(
                                 [common.Increment_Nonce(A1UserDataList[6]), common.Get_4byte_IP_Address(A2UserDataList[1]), common.Get_2byte_Port_Number(A2UserDataList[8]), A2UserDataList[3], A2UserDataList[0]]

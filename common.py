@@ -283,12 +283,16 @@ MESSAGE_ID_LIST = [
     [0b00000111, "server_sends_info_to_client2"],
     [0b00001000, "client2_reply_to_server"],
     [0b00001001, "server_reply_to_client1"],
+
     [0b00001010, "A1_to_A2_key_setup"],
     [0b00001011, "A2_to_A1_ack"],
+
     [0b00001100, "A1_to_A2_send_message"],
     [0b00001101, "A2_to_A1_send_message"],
+
     [0b00001110, "client_to_server_list_update"],
     [0b00001111, "server_to_client_user_list"],
+
     [0b00010000, "client_to_server_logout"],
     [0b00010001, "client_to_client_logout"]
 ]
