@@ -447,6 +447,9 @@ if __name__ == "__main__":
                 print "Not enough arguments"
                 continue
             A2Username = userInput.split()[1]
+            if A2Username == loggedInUsername:
+                print "Message not sent | Target Username cannot be same as your username."
+                continue
             if len(userInput) <= 6 + len(A2Username):
                 print "Not enough arguments"
                 continue
@@ -481,7 +484,10 @@ if __name__ == "__main__":
             print clientDataTable
         elif userInput == "help":
             Print_Syntax()
+        elif userInput == "":
+            continue
         else:
+            print "Invalid Input"
             continue
 
 
