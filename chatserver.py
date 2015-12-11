@@ -189,7 +189,7 @@ if __name__ == "__main__":
                                 users_can_send_pass.append([client_ip, client_port])
                                 users_challenged.remove([client_ip, client_port, challenge_output])
                                 sock.send(common.Get_Message_ID('challenge_result'))
-                                print "Client " + str(address) + " has connected."
+                                print "Client " + str(address) + " has passed proof of work challenge."
                             else:
                                 print "Client " + str(address) + " failed the challenge."
                                 continue
@@ -202,7 +202,8 @@ if __name__ == "__main__":
                             # received
                             # message id (1 byte) | client signed hash (256 bytes) | iv (16 bytes) | encrypted AES (256 bytes) | ciph
                             # AES encrypted ciph:
-                            #     Nonce (32 bytes) | public key client (460 bytes) | username length (1 byte) | username (<-) | password (toend)
+                            #     Nonce (32 bytes) | public key client (451 bytes) | username length (1 byte) | username (<-) | password (toend)
+                            users_can_send_pass.remove([client_ip, client_port])
                             client_signed_hash = client_message[   :256]
                             iv                 = client_message[256:272]
                             encrypted_AES_key  = client_message[272:528]

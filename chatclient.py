@@ -64,7 +64,7 @@ def Initiate_Login_Sequence(client_private_key):
         if not recvData:
             continue
         if recvData[0:1] != common.Get_Message_ID("login_reply_from_server"):
-            print "Invalid message ID"
+            print "Incorrect response from Server, could be a MITM attack or server compromised"
             sys.exit()
         signedHash = recvData[1:257]
         iv = recvData[257:273]
@@ -396,9 +396,6 @@ if __name__ == "__main__":
         sys.exit()
     #print "Connected!"
 
-    ##### Initiate login challenge sequence and exit if failed
-    if Request_For_Login() == False:
-        sys.exit("Failed Initial Challenge Verification\nCheck challenge hashing module\nExiting...")
 
     ##### Generate RSA key pair for client
     client_private_key = rsa.generate_private_key(
@@ -407,8 +404,12 @@ if __name__ == "__main__":
         backend=default_backend()
     )
     serialized_pri_key = common.Serialize_Pri_Key(client_private_key)
-    ##### Initiate login authorization sequence for this user and get the clear text
+
     for i in range(0,5):
+            ##### Initiate login challenge sequence and exit if failed
+        if Request_For_Login() == False:
+            sys.exit("Failed Initial proof of work Challenge Verification\nCould not send credentials to server\nExiting...")
+            ##### Initiate login authorization sequence for this user and get the clear text
         loginReply, username = Initiate_Login_Sequence(client_private_key)
         if loginReply[:1] == chr(1):
             break
