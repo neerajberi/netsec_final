@@ -97,7 +97,7 @@ def Receive_and_Display_List(recvdMessage):
         numUsers = 0
         listUsers = []
         index = 0
-        print "Online Users: (" + userListMessageWithLength[index+1:] + ")"
+        print "Online Users: (" + userListMessageWithLength[userListMessageWithLength.index(chr(0))+1:] + ")"
         while True:
             usernameLength = ord(userListMessageWithLength[index])
             if usernameLength == 0:
