@@ -1,0 +1,4 @@
+1) Correct the bug when a user logs in again from separate terminal. Delete previous entry from server authed database. Other clients should also remove previous data from user table
+2) Add a timeout for symmetric keys
+3) Add logout mechanism
+4) In case client1 is not able to reach client2, delete client2's entry from client1 table
