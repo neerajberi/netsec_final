@@ -1,7 +1,7 @@
 # chat server
 # python 3.5
 
-import sys, socket, getopt, select, common, os, binascii
+import sys, socket, getopt, select, common, os, binascii, time
 
 # server private/public key pair
 serv_pri_key_path = "server_keypair/server_private_key.pem"
@@ -38,6 +38,13 @@ authed_users = [] # initially empty
 # example of how a user would be added to this list
 #                    username | IP       | Port | Public Key | Shared AES key | Shared HKey   | Nonce
 #authed_users.append(['jack', '129.0.0.3', '9090', serv_pub_key, os.urandom(32), os.urandom(32), os.urandom(32)])
+
+# List specifying which users potentially have their client to client keys setup
+# In other words which users information were sent to which users
+# [user whose info was sent, ""] | [user1 to whom this info was sent, time of sending the info] | .....
+A1A2_key_exchanged_user_list = []
+A1A2_key_exchanged_user_list_timeout = 600
+
 
 # verifies a user
 def Verify_User(username, password):
@@ -102,6 +109,52 @@ def Get_User_Data_With_Username(recvdUsername):
             userFound = False
     return currentUserDataList, userFound, authdUsersListIndex
 
+def update_A1A2_key_exchanged_user_list(targetUsername, sourceUsername):
+    for i in range(0,len(A1A2_key_exchanged_user_list)):
+        if A1A2_key_exchanged_user_list[i][0] == targetUsername:
+            for j in range(0, len(A1A2_key_exchanged_user_list[i])):
+                if A1A2_key_exchanged_user_list[i][j][0] == sourceUsername:
+                    A1A2_key_exchanged_user_list[i][j][1] = int(time.time())
+                    return
+            A1A2_key_exchanged_user_list[i].append([sourceUsername, int(time.time()) + A1A2_key_exchanged_user_list_timeout])
+
+def check_for_duplicate_login(client_username):
+    for user in authed_users:
+        if user[0] == client_username:
+            print "Found duplicate username %s" % client_username
+            print A1A2_key_exchanged_user_list
+            authed_users.remove(user)
+            clients.remove(user[7])
+            user[7].close()
+
+def trigger_A1A2_key_refresh(client_username):
+    A1UserDataList, A1userFound, A1authdUsersListIndex = Get_User_Data_With_Username(client_username)
+    #print A1UserDataList
+    #print A1A2_key_exchanged_user_list
+    #print authed_users
+    for i in range(0, len(A1A2_key_exchanged_user_list)):
+        if A1A2_key_exchanged_user_list[i][0] == client_username:
+            for j in range(2, len(A1A2_key_exchanged_user_list[i])):
+                if A1A2_key_exchanged_user_list[i][j][1] > int(time.time()):
+                    A2UserDataList, A2userFound, A2authdUsersListIndex = Get_User_Data_With_Username(A1A2_key_exchanged_user_list[i][j][0])
+                    if not A2userFound:
+                        print "Target user %s not in authed user list" % A1A2_key_exchanged_user_list[i][j][0]
+                        continue
+                    A2sendClearText = ''.join(
+                        [common.Increment_Nonce(A2UserDataList[6]), common.Get_4byte_IP_Address(A1UserDataList[1]), common.Get_2byte_Port_Number(A1UserDataList[8]), A1UserDataList[3], client_username]
+                    )
+                    #print A2sendClearText
+                    A2HmacAppendedCipherText = common.AES_Encrypt_Add_HMAC(A2sendClearText, A2UserDataList[4], A2UserDataList[5])
+                    A2sendData = ''.join([common.Get_Message_ID("server_sends_info_to_client2"), A2HmacAppendedCipherText])
+                    sockA2 = A2UserDataList[7]
+                    sockA2.send(A2sendData)
+                    print "triggered key refresh of %s with %s" % (client_username, A2UserDataList[0])
+                    authed_users[A2authdUsersListIndex][6] = common.Increment_Nonce(A2UserDataList[6])
+                    time.sleep(0.1)
+            return
+
+
+
 
 if __name__ == "__main__":
     #list of connected clients (including the server)
@@ -144,7 +197,7 @@ if __name__ == "__main__":
                 # broadcast(new_sock, "New member! Everyone say hi to: " + str(address))
             else:
                 # data received from a client that is already connected.
-                #try: ################################## commented to see exceptions in detail
+                try: ################################## commented to see exceptions in detail
                     data = sock.recv(recv_buf)
                     if data:
                         # THIS IS WHERE ALL THE PROCESSING AND STUFF ACTUALLY HAPPENS
@@ -253,9 +306,16 @@ if __name__ == "__main__":
                             sendData = "".join([response_message_id, response_signedHash, response_superCipherText])
                             sock.send(sendData)
                             # username | IP | Port | Public Key | Shared AES key | Shared HKey | Nonce | socket | Listen port
+                            # Check if user was already present in authed_users table
+
+                            check_for_duplicate_login(client_username)
                             authed_users.append(
                                 [client_username, client_ip, client_port, client_public_key, shared_aes, shared_hkey, response_nonce, sock, common.Get_Integer_Port_from_2byte_Port(client_ListenPort)]
                             )
+                            trigger_A1A2_key_refresh(client_username)
+
+                            A1A2_key_exchanged_user_list.append([client_username, ["", ""]])
+
                             print "User \"" + client_username + "\" has authenticated from " + str(address) + "."
                             #print "sent acceptance message/added user to list of active, authed users"
                             # print authed_users
@@ -304,7 +364,7 @@ if __name__ == "__main__":
                             print "sent user list to username = %s" % recvdUsername
                             continue
 
-                        ##################### Handles the client to client communication ##################
+                        ##################### Handles the support for client to client communication ##################
                         # Handles the Client1 request to server to initiate communication with client2 and sends a headsup to Client2
                         if client_message_id_name == "client1_request_to_server_for_client2":
                             A1UserDataList, A1userFound, A1authdUsersListIndex = Get_User_Data_with_ip_port(client_ip, client_port)
@@ -340,6 +400,7 @@ if __name__ == "__main__":
                             sockA2 = A2UserDataList[7]
                             sockA2.send(A2sendData)
                             authed_users[A2authdUsersListIndex][6] = common.Increment_Nonce(A2UserDataList[6])
+                            update_A1A2_key_exchanged_user_list(recvdA2Username, recvdA1Username)
                             print "User \"" + recvdA1Username + "\" is trying to set up a key with \"" + recvdA2Username + "\"."
                             continue
 
@@ -360,7 +421,7 @@ if __name__ == "__main__":
                             A1UserDataList, A1userFound, A1authdUsersListIndex = Get_User_Data_With_Username(recvdA1Username)
                             if A1userFound == False:
                                 print "Source user specified not in authed user list"
-                                print "length of authed users list = %s" % len(authed_users)
+                                # print "length of authed users list = %s" % len(authed_users)
                                 continue
                             A1sendPlainText = ''.join(
                                 [common.Increment_Nonce(A1UserDataList[6]), common.Get_4byte_IP_Address(A2UserDataList[1]), common.Get_2byte_Port_Number(A2UserDataList[8]), A2UserDataList[3], A2UserDataList[0]]
@@ -370,18 +431,18 @@ if __name__ == "__main__":
                             sockA1 = A1UserDataList[7]
                             sockA1.send(A1sendData)
                             authed_users[A1authdUsersListIndex][6] = common.Increment_Nonce(A1UserDataList[6])
+                            update_A1A2_key_exchanged_user_list(recvdA1Username, A2UserDataList[0])
+                            print "Done with Key exchange support to clients"
                             continue
-
-
 
                         # ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
                         # THIS IS WHERE ALL THE PROCESSING AND STUFF ACTUALLY HAPPENS
                         # PROBABLY GOING TO JUST HAND THE SOCK AND DATA OFF TO A HELPER
                         # TO KEEP THINGS CLEAN
-                #except: ################################ commented to see exceptions in detail
+                except: ################################ commented to see exceptions in detail
                 #    # something went wrong, remove the client and close the socket.
-                #    print "Client " + str(address) + " disconnected."
-                #    sock.close()
-                #    clients.remove(sock)
-                #    continue
+                    print "Client " + str(address) + " disconnected."
+                    sock.close()
+                    clients.remove(sock)
+                    continue
     serv_sock.close()

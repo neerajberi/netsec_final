@@ -5,6 +5,25 @@ import sys, socket, getopt, select, thread, common, time, os
 from cryptography.hazmat.backends import default_backend
 from cryptography.hazmat.primitives.asymmetric import rsa
 
+threadInterruptSignal = False
+
+serv_pub_key_path = "server_keypair/server_public_key.pem"
+serialized_serv_pub_key = ""
+with open(serv_pub_key_path, "rb") as key_file:
+    serialized_serv_pub_key = key_file.read()
+
+clientDataTable = [
+    ["Username", "IP", "Port", "PublicKey", "AESkey", "HMACkey", "Nonce", "Socket", "Key Established Time"]
+]
+
+listenPort = 0
+allSockets = []
+loggedInUsername = ""
+serialized_pri_key = ""
+serialized_pub_key = ""
+
+
+
 def prompt():
     sys.stdout.write("+> ")
     sys.stdout.flush()
@@ -186,6 +205,7 @@ def A1A2KeyExchange(A2UserDataList):
         clientDataTable[A2clientTableListIndex][4] = A1A2_AES_Key
         clientDataTable[A2clientTableListIndex][5] = A1A2_HMAC_Key
         clientDataTable[A2clientTableListIndex][6] = A1A2_Nonce
+        clientDataTable[A2clientTableListIndex][8] = int(time.time())
         while True:
             data = A2sock.recv(recv_buf)
             if data:
@@ -199,14 +219,14 @@ def A1A2KeyExchange(A2UserDataList):
                     break
                 clientDataTable[A2clientTableListIndex][6] = A2recvdNonce
                 break
-
+        return
     except:
         print "Something is wrong with the client 2 connection\nA1A2 key exchange failed"
     return
 
 def Add_Row_To_Client_Data_Table(username, IP, Port, PubKey, AESkey, HMACkey, Nonce, socket):
     i = len(clientDataTable)
-    clientDataTable.append([username, IP, Port, PubKey, AESkey, HMACkey, Nonce, socket])
+    clientDataTable.append([username, IP, Port, PubKey, AESkey, HMACkey, Nonce, socket, int(time.time())])
     return
 
 def Print_Syntax():
@@ -217,114 +237,126 @@ def Print_Syntax():
     return
 
 def Keep_Listening():
-    while True:
-        read_socks,write_socks,error_socks = select.select(allSockets,[],[])
-        for sock in read_socks:
-            if sock == sockListen:
-                # could be a new client initiating connection
-                # accept the new connection and add it to the connection list
-                new_sock, address = sockListen.accept()
-                allSockets.append(new_sock)
-            elif sock == sockClient:
-                # Data received from the server
+    global threadInterruptSignal
+    try:
+        while True:
+            read_socks,write_socks,error_socks = select.select(allSockets,[],[])
+            for sock in read_socks:
+                if sock == sockListen:
+                    # could be a new client initiating connection
+                    # accept the new connection and add it to the connection list
+                    new_sock, address = sockListen.accept()
+                    allSockets.append(new_sock)
+                elif sock == sockClient:
+                    # Data received from the server
+                        data = sock.recv(recv_buf)
+                        if data:
+                            recvdMessageID = data[:1]
+                            recvdMessage = data[1:]
+                            if recvdMessageID == common.Get_Message_ID("server_to_client_user_list"):
+                                Receive_and_Display_List(recvdMessage)
+                            elif recvdMessageID == common.Get_Message_ID("server_sends_info_to_client2"):
+                                recvdPlainText = common.Verify_HMAC_Decrypt_AES(recvdMessage, clientDataTable[1][5], clientDataTable[1][4])
+                                if recvdPlainText[:32] != common.Increment_Nonce(clientDataTable[1][6]):
+                                   print "Nonce failed"
+                                   sys.exit()
+                                clientDataTable[1][6] = recvdPlainText[:32]
+                                recvedIPA1 = common.Get_String_IP_from_4byte_IP(recvdPlainText[32:36])
+                                recvdPortA1 = common.Get_Integer_Port_from_2byte_Port(recvdPlainText[36:38])
+                                recvdPubA1 = recvdPlainText[38:489]
+                                recvdUsernameA1 = recvdPlainText[489:]
+                                A1clientDataList, A1clientFound, A1clientTableListIndex = Get_User_Data_With_Username(recvdUsernameA1)
+                                if A1clientFound:
+                                    clientDataTable.remove(A1clientDataList)
+                                    # print "removed datatable entry for %s" % recvdUsernameA1
+                                Add_Row_To_Client_Data_Table(recvdUsernameA1, recvedIPA1, recvdPortA1, recvdPubA1, "", "", "", "")
+                                sendPlainText = ''.join([common.Increment_Nonce(clientDataTable[1][6]), recvdUsernameA1])
+                                HmacAppendedCipherText = common.AES_Encrypt_Add_HMAC(sendPlainText, clientDataTable[1][4], clientDataTable[1][5])
+                                sendData = ''.join([common.Get_Message_ID("client2_reply_to_server"), HmacAppendedCipherText])
+                                sockClient.send(sendData)
+                                clientDataTable[1][6] = common.Increment_Nonce(clientDataTable[1][6])
+                            elif recvdMessageID == common.Get_Message_ID("server_reply_to_client1"):
+                                # print "received key trigger one"
+                                recvdPlainText = common.Verify_HMAC_Decrypt_AES(recvdMessage, clientDataTable[1][5], clientDataTable[1][4])
+                                if recvdPlainText[:32] != common.Increment_Nonce(clientDataTable[1][6]):
+                                    print "Nonce Failed"
+                                    sys.exit()
+                                clientDataTable[1][6] = recvdPlainText[:32]
+                                recvedIPA2 = common.Get_String_IP_from_4byte_IP(recvdPlainText[32:36])
+                                recvdPortA2 = common.Get_Integer_Port_from_2byte_Port(recvdPlainText[36:38])
+                                recvdPubA2 = recvdPlainText[38:489]
+                                recvdUsernameA2 = recvdPlainText[489:]
+                                socketA2 = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+                                socketA2.settimeout(2)
+                                Add_Row_To_Client_Data_Table(recvdUsernameA2, recvedIPA2, recvdPortA2, recvdPubA2, "", "", "", socketA2)
+                                A2UserDataList = [recvdUsernameA2, recvedIPA2, recvdPortA2, recvdPubA2, "", "", "", socketA2]
+                                A1A2KeyExchange(A2UserDataList)
+                else:
                     data = sock.recv(recv_buf)
                     if data:
                         recvdMessageID = data[:1]
                         recvdMessage = data[1:]
-                        if recvdMessageID == common.Get_Message_ID("server_to_client_user_list"):
-                            Receive_and_Display_List(recvdMessage)
-                        elif recvdMessageID == common.Get_Message_ID("server_sends_info_to_client2"):
-                            recvdPlainText = common.Verify_HMAC_Decrypt_AES(recvdMessage, clientDataTable[1][5], clientDataTable[1][4])
-                            if recvdPlainText[:32] != common.Increment_Nonce(clientDataTable[1][6]):
-                               print "Nonce failed"
-                               sys.exit()
-                            clientDataTable[1][6] = recvdPlainText[:32]
-                            recvedIPA1 = common.Get_String_IP_from_4byte_IP(recvdPlainText[32:36])
-                            recvdPortA1 = common.Get_Integer_Port_from_2byte_Port(recvdPlainText[36:38])
-                            recvdPubA1 = recvdPlainText[38:489]
-                            recvdUsernameA1 = recvdPlainText[489:]
-                            Add_Row_To_Client_Data_Table(recvdUsernameA1, recvedIPA1, recvdPortA1, recvdPubA1, "", "", "", "")
-                            sendPlainText = ''.join([common.Increment_Nonce(clientDataTable[1][6]), recvdUsernameA1])
-                            HmacAppendedCipherText = common.AES_Encrypt_Add_HMAC(sendPlainText, clientDataTable[1][4], clientDataTable[1][5])
-                            sendData = ''.join([common.Get_Message_ID("client2_reply_to_server"), HmacAppendedCipherText])
-                            sockClient.send(sendData)
-                            clientDataTable[1][6] = common.Increment_Nonce(clientDataTable[1][6])
-                        elif recvdMessageID == common.Get_Message_ID("server_reply_to_client1"):
-                            recvdPlainText = common.Verify_HMAC_Decrypt_AES(recvdMessage, clientDataTable[1][5], clientDataTable[1][4])
-                            if recvdPlainText[:32] != common.Increment_Nonce(clientDataTable[1][6]):
-                                print "Nonce Failed"
-                                sys.exit()
-                            clientDataTable[1][6] = recvdPlainText[:32]
-                            recvedIPA2 = common.Get_String_IP_from_4byte_IP(recvdPlainText[32:36])
-                            recvdPortA2 = common.Get_Integer_Port_from_2byte_Port(recvdPlainText[36:38])
-                            recvdPubA2 = recvdPlainText[38:489]
-                            recvdUsernameA2 = recvdPlainText[489:]
-                            socketA2 = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-                            socketA2.settimeout(2)
-                            Add_Row_To_Client_Data_Table(recvdUsernameA2, recvedIPA2, recvdPortA2, recvdPubA2, "", "", "", socketA2)
-                            A2UserDataList = [recvdUsernameA2, recvedIPA2, recvdPortA2, recvdPubA2, "", "", "", socketA2]
-                            A1A2KeyExchange(A2UserDataList)
-            else:
-                data = sock.recv(recv_buf)
-                if data:
-                    recvdMessageID = data[:1]
-                    recvdMessage = data[1:]
-                    if recvdMessageID == common.Get_Message_ID("A1_to_A2_key_setup"):
-                        A1A2SignedHash      = recvdMessage[:256]
-                        iv                  = recvdMessage[256:272]
-                        A1A2encryptedAESkey = recvdMessage[272:528]
-                        A1A2CipherText      = recvdMessage[528:]
-                        A1A2_aes_key = common.Asymmetric_Decrypt(serialized_pri_key, A1A2encryptedAESkey)
-                        A1A2plainText = common.Symmetric_Decrypt(A1A2CipherText, A1A2_aes_key, iv)
-                        A1A2Nonce = A1A2plainText[:32]
-                        A1A2hmacKey = A1A2plainText[32:64]
-                        A1userName = A1A2plainText[64:]
-                        A1UserDataList, A1UserFound, A1clientTableListIndex = Get_User_Data_With_Username(A1userName)
-                        if not common.Verify_Signature(recvdMessage[256:], A1A2SignedHash, A1UserDataList[3]):
-                            print "Signature Verification from A1 in A1A2 key setup failed"
+                        if recvdMessageID == common.Get_Message_ID("A1_to_A2_key_setup"):
+                            A1A2SignedHash      = recvdMessage[:256]
+                            iv                  = recvdMessage[256:272]
+                            A1A2encryptedAESkey = recvdMessage[272:528]
+                            A1A2CipherText      = recvdMessage[528:]
+                            A1A2_aes_key = common.Asymmetric_Decrypt(serialized_pri_key, A1A2encryptedAESkey)
+                            A1A2plainText = common.Symmetric_Decrypt(A1A2CipherText, A1A2_aes_key, iv)
+                            A1A2Nonce = A1A2plainText[:32]
+                            A1A2hmacKey = A1A2plainText[32:64]
+                            A1userName = A1A2plainText[64:]
+                            A1UserDataList, A1UserFound, A1clientTableListIndex = Get_User_Data_With_Username(A1userName)
+                            if not common.Verify_Signature(recvdMessage[256:], A1A2SignedHash, A1UserDataList[3]):
+                                print "Signature Verification from A1 in A1A2 key setup failed"
+                                continue
+                            clientDataTable[A1clientTableListIndex][4] = A1A2_aes_key
+                            clientDataTable[A1clientTableListIndex][5] = A1A2hmacKey
+                            clientDataTable[A1clientTableListIndex][6] = common.Increment_Nonce(A1A2Nonce)
+                            clientDataTable[A1clientTableListIndex][7] = sock
+                            clientDataTable[A1clientTableListIndex][8] = int(time.time())
+                            A2A1responsePlainText = common.Increment_Nonce(A1A2Nonce)
+                            A2A1responseCipherText = common.AES_Encrypt_Add_HMAC(A2A1responsePlainText, A1A2_aes_key, A1A2hmacKey)
+                            A2A1sendData = ''.join([common.Get_Message_ID("A2_to_A1_ack"), A2A1responseCipherText])
+                            sock.send(A2A1sendData)
                             continue
-                        clientDataTable[A1clientTableListIndex][4] = A1A2_aes_key
-                        clientDataTable[A1clientTableListIndex][5] = A1A2hmacKey
-                        clientDataTable[A1clientTableListIndex][6] = common.Increment_Nonce(A1A2Nonce)
-                        clientDataTable[A1clientTableListIndex][7] = sock
-                        A2A1responsePlainText = common.Increment_Nonce(A1A2Nonce)
-                        A2A1responseCipherText = common.AES_Encrypt_Add_HMAC(A2A1responsePlainText, A1A2_aes_key, A1A2hmacKey)
-                        A2A1sendData = ''.join([common.Get_Message_ID("A2_to_A1_ack"), A2A1responseCipherText])
-                        sock.send(A2A1sendData)
-                        continue
-                    if recvdMessageID == common.Get_Message_ID("A1_to_A2_send_message"):
-                        A1UserDataList, A1UserFound, A1clientTableListIndex = Get_User_Data_With_Socket(sock)
-                        #print "received A1 to A2 message from %s on socket = %s" % (A1UserDataList[0], sock)
-                        A1recvdPlainText = common.Verify_HMAC_Decrypt_AES(recvdMessage, A1UserDataList[5], A1UserDataList[4])
-                        if A1recvdPlainText[:32] != common.Increment_Nonce(A1UserDataList[6]):
-                            print "Nonce Verification Failed in A1 to A2 send message"
-                            print "received Nonce = %s" % A1recvdPlainText[:32]
-                            print "self Incremented Nonce = %s" % common.Increment_Nonce(A1UserDataList[6])
+                        if recvdMessageID == common.Get_Message_ID("A1_to_A2_send_message"):
+                            A1UserDataList, A1UserFound, A1clientTableListIndex = Get_User_Data_With_Socket(sock)
+                            #print "received A1 to A2 message from %s on socket = %s" % (A1UserDataList[0], sock)
+                            A1recvdPlainText = common.Verify_HMAC_Decrypt_AES(recvdMessage, A1UserDataList[5], A1UserDataList[4])
+                            if A1recvdPlainText[:32] != common.Increment_Nonce(A1UserDataList[6]):
+                                print "Nonce Verification Failed in A1 to A2 send message"
+                                print "received Nonce = %s" % A1recvdPlainText[:32]
+                                print "self Incremented Nonce = %s" % common.Increment_Nonce(A1UserDataList[6])
+                                continue
+                            clientDataTable[A1clientTableListIndex][6] = common.Increment_Nonce(A1UserDataList[6])
+                            A1recvdTimeStamp = time.ctime(int(A1recvdPlainText[32:42]))
+                            A1recvdUsername = A1recvdPlainText[43:43+ord(A1recvdPlainText[42])]
+                            A1recvdMessage = A1recvdPlainText[43+ord(A1recvdPlainText[42]):]
+                            print "\n<%s> <%s>: %s" % (A1recvdTimeStamp, A1recvdUsername, A1recvdMessage)
+                            prompt()
+                            A1responsePlainText = common.Increment_Nonce(clientDataTable[A1clientTableListIndex][6])
+                            A1responseCipherText = common.AES_Encrypt_Add_HMAC(A1responsePlainText, A1UserDataList[4], A1UserDataList[5])
+                            sendData = ''.join([common.Get_Message_ID("A2_to_A1_send_message"), A1responseCipherText])
+                            sock.send(sendData)
+                            #print "sent Ack back to %s on socket = %s" % (A1UserDataList[0], A1UserDataList[7])
+                            clientDataTable[A1clientTableListIndex][6] = common.Increment_Nonce(clientDataTable[A1clientTableListIndex][6])
                             continue
-                        clientDataTable[A1clientTableListIndex][6] = common.Increment_Nonce(A1UserDataList[6])
-                        A1recvdTimeStamp = time.ctime(int(A1recvdPlainText[32:42]))
-                        A1recvdUsername = A1recvdPlainText[43:43+ord(A1recvdPlainText[42])]
-                        A1recvdMessage = A1recvdPlainText[43+ord(A1recvdPlainText[42]):]
-                        print "\n<%s> <%s>: %s" % (A1recvdTimeStamp, A1recvdUsername, A1recvdMessage)
-                        prompt()
-                        A1responsePlainText = common.Increment_Nonce(clientDataTable[A1clientTableListIndex][6])
-                        A1responseCipherText = common.AES_Encrypt_Add_HMAC(A1responsePlainText, A1UserDataList[4], A1UserDataList[5])
-                        sendData = ''.join([common.Get_Message_ID("A2_to_A1_send_message"), A1responseCipherText])
-                        sock.send(sendData)
-                        #print "sent Ack back to %s on socket = %s" % (A1UserDataList[0], A1UserDataList[7])
-                        clientDataTable[A1clientTableListIndex][6] = common.Increment_Nonce(clientDataTable[A1clientTableListIndex][6])
-                        continue
-                    if recvdMessageID == common.Get_Message_ID("A2_to_A1_send_message"):
-                        #print "Test A2 to A1 send message start"
-                        A2UserDataList, A2UserFound, A2clientTableListIndex = Get_User_Data_With_Socket(sock)
-                        A2recvdPlainText = common.Verify_HMAC_Decrypt_AES(recvdMessage, A2UserDataList[5], A2UserDataList[4])
-                        if A2recvdPlainText[:32] != common.Increment_Nonce(A2UserDataList[6]):
-                            print "Nonce Verification Failed in A2 to A1 message Ack"
+                        if recvdMessageID == common.Get_Message_ID("A2_to_A1_send_message"):
+                            #print "Test A2 to A1 send message start"
+                            A2UserDataList, A2UserFound, A2clientTableListIndex = Get_User_Data_With_Socket(sock)
+                            A2recvdPlainText = common.Verify_HMAC_Decrypt_AES(recvdMessage, A2UserDataList[5], A2UserDataList[4])
+                            if A2recvdPlainText[:32] != common.Increment_Nonce(A2UserDataList[6]):
+                                print "Nonce Verification Failed in A2 to A1 message Ack"
+                                continue
+                            clientDataTable[A2clientTableListIndex][6] = common.Increment_Nonce(clientDataTable[A2clientTableListIndex][6])
+                            #print "Received Nonce from A2 in ack = %s" % clientDataTable[A2clientTableListIndex][6]
+                            #print "Ack received"
                             continue
-                        clientDataTable[A2clientTableListIndex][6] = common.Increment_Nonce(clientDataTable[A2clientTableListIndex][6])
-                        #print "Received Nonce from A2 in ack = %s" % clientDataTable[A2clientTableListIndex][6]
-                        #print "Ack received"
-                        continue
+    except:
+        threadInterruptSignal = True
+        print "Connection was closed by Server perhaps because you logged in from another client\nHit Enter to Exit the program"
+        sys.exit()
 
 
                     # elif recvdMessageID == common.Get_Message_ID("A1_to_A2_send_message"):
@@ -349,20 +381,6 @@ def Keep_Listening():
 ################## Main Program - Start ############################
 ####################################################################
 
-serv_pub_key_path = "server_keypair/server_public_key.pem"
-serialized_serv_pub_key = ""
-with open(serv_pub_key_path, "rb") as key_file:
-    serialized_serv_pub_key = key_file.read()
-
-clientDataTable = [
-    ["Username", "IP", "Port", "PublicKey", "AESkey", "HMACkey", "Nonce", "Socket"]
-]
-
-listenPort = 0
-allSockets = []
-loggedInUsername = ""
-serialized_pri_key = ""
-serialized_pub_key = ""
 
 
 if __name__ == "__main__":
@@ -405,11 +423,12 @@ if __name__ == "__main__":
     )
     serialized_pri_key = common.Serialize_Pri_Key(client_private_key)
 
+    ##### Initiate login challenge sequence and exit if failed
+    if Request_For_Login() == False:
+        sys.exit("Failed Initial proof of work Challenge Verification\nCould not send credentials to server\nExiting...")
+
     for i in range(0,5):
-            ##### Initiate login challenge sequence and exit if failed
-        if Request_For_Login() == False:
-            sys.exit("Failed Initial proof of work Challenge Verification\nCould not send credentials to server\nExiting...")
-            ##### Initiate login authorization sequence for this user and get the clear text
+        ##### Initiate login authorization sequence for this user and get the clear text
         loginReply, username = Initiate_Login_Sequence(client_private_key)
         if loginReply[:1] == chr(1):
             break
@@ -417,6 +436,8 @@ if __name__ == "__main__":
             if i == 4:
                 sys.exit("Incorrect username or password\nAll attempts exhausted\nExiting...")
             else:
+                if Request_For_Login() == False:
+                    sys.exit("Failed Initial proof of work Challenge Verification\nCould not send credentials to server\nExiting...")
                 print "Incorrect username or password\nPlease try again (Remaining Attempts = %s)" % (4-i)
     #print "credentials accepted!"
     ##### Store the values in clientDataTable
@@ -435,67 +456,70 @@ if __name__ == "__main__":
     loggedInUsername = username
     thread.start_new_thread(Keep_Listening, ())
     Print_Syntax()
-#    try:
-    while True:
-        time.sleep(0.1)
-        prompt()
-        # Gets all of the sockets that are ready
-        userInput = raw_input()
-        if userInput == "list":
-            Ask_Server_For_List(username)
-        elif userInput[:5] == "text ":
-            if len(userInput.split()) < 2:
-                print "Not enough arguments"
+    try:
+        while True:
+            if threadInterruptSignal == True:
+                sys.exit()
+            time.sleep(0.1)
+            prompt()
+            # Gets all of the sockets that are ready
+            userInput = raw_input()
+            if userInput == "list":
+                Ask_Server_For_List(username)
+            elif userInput[:5] == "text ":
+                if len(userInput.split()) < 2:
+                    print "Not enough arguments"
+                    continue
+                A2Username = userInput.split()[1]
+                if A2Username == loggedInUsername:
+                    print "Message not sent : Target Username cannot be same as your username."
+                    continue
+                if len(userInput) <= 6 + len(A2Username):
+                    print "Not enough arguments"
+                    continue
+                A2UserDataList, A2UserFound, A2clientTableListIndex = Get_User_Data_With_Username(A2Username)
+                A1A2MESSAGE = userInput[6+len(A2Username):]
+                if not A2UserFound or A2UserDataList[4] == "":
+                    MESSAGE = Client_Key_Exchange_Request_to_Server(userInput, username)
+                    timeout_start = time.time()
+                    timeout = 10
+                    while True:
+                        time.sleep(0.1)
+                        if time.time() > timeout_start + timeout:
+                            print "Timed out...\nNo response from either server or the client"
+                            print "This could be either because the user you tried is offline or there is a connectivity issue with server or client"
+                            break
+                        A2UserDataList, A2UserFound, A2clientTableListIndex = Get_User_Data_With_Username(A2Username)
+                        if not A2UserFound or A2UserDataList[4] == "":
+                            continue
+                        else:
+                            break
+                # print A2UserDataList
+                #print "length of client data table = %s" % len(clientDataTable)
+                # print clientDataTable
+                if A2UserFound and A2UserDataList[4] != "":
+                    SendMessagetoA2(A1A2MESSAGE, loggedInUsername, A2UserDataList, A2clientTableListIndex)
+
+
+                # timeout_start = time.time() #---- could be used for timeout on listening socket
+                # timeout = 10 # in seconds
+                # while time.time() < timeout_start + timeout:
+            #elif userInput == "print":
+                #print "length of client data table = %s" % len(clientDataTable)
+                #print clientDataTable
+            elif userInput == "help":
+                Print_Syntax()
+            elif userInput == "":
                 continue
-            A2Username = userInput.split()[1]
-            if A2Username == loggedInUsername:
-                print "Message not sent | Target Username cannot be same as your username."
+            else:
+                print "Invalid Input"
                 continue
-            if len(userInput) <= 6 + len(A2Username):
-                print "Not enough arguments"
-                continue
-            A2UserDataList, A2UserFound, A2clientTableListIndex = Get_User_Data_With_Username(A2Username)
-            A1A2MESSAGE = userInput[6+len(A2Username):]
-            if not A2UserFound or A2UserDataList[4] == "":
-                MESSAGE = Client_Key_Exchange_Request_to_Server(userInput, username)
-                timeout_start = time.time()
-                timeout = 10
-                while True:
-                    time.sleep(0.1)
-                    if time.time() > timeout_start + timeout:
-                        print "Timed out...\nNo response from either server or the client"
-                        break
-                    A2UserDataList, A2UserFound, A2clientTableListIndex = Get_User_Data_With_Username(A2Username)
-                    if not A2UserFound or A2UserDataList[4] == "":
-                        continue
-                    else:
-                        break
-            # print A2UserDataList
-            #print "length of client data table = %s" % len(clientDataTable)
-            # print clientDataTable
-            if A2UserFound and A2UserDataList[4] != "":
-                SendMessagetoA2(A1A2MESSAGE, loggedInUsername, A2UserDataList, A2clientTableListIndex)
-
-
-            # timeout_start = time.time() #---- could be used for timeout on listening socket
-            # timeout = 10 # in seconds
-            # while time.time() < timeout_start + timeout:
-        elif userInput == "print":
-            print "length of client data table = %s" % len(clientDataTable)
-            print clientDataTable
-        elif userInput == "help":
-            Print_Syntax()
-        elif userInput == "":
-            continue
-        else:
-            print "Invalid Input"
-            continue
 
 
 
-#    except:
-#        print "Invalid Input\nExiting..."
-#        sys.exit()
+    except:
+        print "Something went wrong\nPlease restart the client"
+        sys.exit()
 
 
 
