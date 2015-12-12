@@ -1,3 +1,12 @@
+Below is the spec for our original message system. Each message is detailed at a bit level. Please note the following changes in our final implementation:
+* Omitted the logout message
+* Any messages that show large portions of data being encrypted with an asymmetric key have been changed so that data is encrypted using a temporary symmetric key which is transmitted in the same message encrypted with the receiver's private key.
+
+
+Please if there are any questions about this or if anything isn't clear, email Joe or Neeraj.
+
+---
+
 LOGIN CHALLENGE EXCHANGE:
 
 [ bit0-7: messageID ]
