@@ -1,5 +1,6 @@
 # chat server
 # python 3.5
+# Joseph Ruane + Neeraj Beri
 
 import sys, socket, getopt, select, common, os, binascii, time
 
@@ -23,21 +24,14 @@ user_passes = {
 
 # list of challenged users
 # IP | Port | Challenge hash output(first 32bits)
-users_challenged = [] # initially empty
-# example of how you add a user to this list when you receive a request for a challenge
-#users_challenged.append(['129.0.0.1', 58920, os.urandom(4)])
-#users_challenged.append(['129.0.0.2', 58920, os.urandom(4)])
+users_challenged = []
 
 # IP | Port
 users_can_send_pass = []
-#users_can_send_pass.append(['129.0.0.2', 58920])
 
 # list of currently connected users
 # username | IP | Port | Public Key | Shared AES key | Shared HKey | Nonce
-authed_users = [] # initially empty
-# example of how a user would be added to this list
-#                    username | IP       | Port | Public Key | Shared AES key | Shared HKey   | Nonce
-#authed_users.append(['jack', '129.0.0.3', '9090', serv_pub_key, os.urandom(32), os.urandom(32), os.urandom(32)])
+authed_users = []
 
 # List specifying which users potentially have their client to client keys setup
 # In other words which users information were sent to which users
@@ -122,7 +116,7 @@ def check_for_duplicate_login(client_username):
     for user in authed_users:
         if user[0] == client_username:
             print "Found duplicate username %s" % client_username
-            # print A1A2_key_exchanged_user_list
+            print A1A2_key_exchanged_user_list
             authed_users.remove(user)
             clients.remove(user[7])
             user[7].close()
@@ -153,9 +147,6 @@ def trigger_A1A2_key_refresh(client_username):
                     time.sleep(0.1)
             return
 
-
-
-
 if __name__ == "__main__":
     #list of connected clients (including the server)
     clients = []
@@ -179,10 +170,9 @@ if __name__ == "__main__":
     serv_sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
     serv_sock.bind(("0.0.0.0", chatport))
     serv_sock.listen(10)
-    #
     clients.append(serv_sock)
     print "Server started on port: " + str(chatport)
-    #
+
     while True:
         # Gets all of the sockets that are ready
         read_socks,write_socks,error_socks = select.select(clients,[],[])
@@ -196,23 +186,14 @@ if __name__ == "__main__":
                 # let everyone know that a new member has joined the chat
                 # broadcast(new_sock, "New member! Everyone say hi to: " + str(address))
             else:
-                # data received from a client that is already connected.
-                try: ################################## commented to see exceptions in detail
+                try:
                     data = sock.recv(recv_buf)
                     if data:
-                        # THIS IS WHERE ALL THE PROCESSING AND STUFF ACTUALLY HAPPENS
-                        # PROBABLY GOING TO JUST HAND THE SOCK AND DATA OFF TO A HELPER
-                        # TO KEEP THINGS CLEAN
-                        # vvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvv
-
                         client_ip              = sock.getpeername()[0]
                         client_port            = sock.getpeername()[1]
-                        #print "client info <" + str(client_ip) + ":" + str(client_port) + ">"
                         client_message_id      = data[:1]
                         client_message_id_name = common.Get_Message_Name(client_message_id)
                         client_message         = data[1:]
-                        #print "client message: " + client_message_id_name
-
                         # Challenge request handling
                         if client_message_id_name == 'login_request':
                             #print("login requested")
@@ -233,12 +214,8 @@ if __name__ == "__main__":
                             #print "got a solution!"
                             if (not Is_User_Challenged(client_ip, client_port)) or Can_User_Auth(client_ip, client_port) or Is_User_Authed(client_ip, client_port):
                                 continue
-                            #print("user has not been authed and has been sent a challenge")
-                            #print "user challenged list"
-                            #print users_challenged
                             challenge_output = Get_Challenge_Out(client_ip, client_port)
                             if common.Verify_Challenge_Solution(client_message, challenge_output):
-                                #print "solution checks out!"
                                 users_can_send_pass.append([client_ip, client_port])
                                 users_challenged.remove([client_ip, client_port, challenge_output])
                                 sock.send(common.Get_Message_ID('challenge_result'))
@@ -251,36 +228,23 @@ if __name__ == "__main__":
                         if client_message_id_name == "user_login":
                             if (not Can_User_Auth(client_ip, client_port)) or Is_User_Authed(client_ip, client_port):
                                 continue
-                            #print("user attempting to login")
-                            # received
-                            # message id (1 byte) | client signed hash (256 bytes) | iv (16 bytes) | encrypted AES (256 bytes) | ciph
-                            # AES encrypted ciph:
-                            #     Nonce (32 bytes) | public key client (451 bytes) | username length (1 byte) | username (<-) | password (toend)
                             users_can_send_pass.remove([client_ip, client_port])
                             client_signed_hash = client_message[   :256]
                             iv                 = client_message[256:272]
                             encrypted_AES_key  = client_message[272:528]
                             ciphertext         = client_message[528:   ]
                             unencrypted_AES_key = common.Asymmetric_Decrypt(serv_pri_key, encrypted_AES_key)
-                            #print client_signed_hash
-                            #print "iv: " + binascii.hexlify(iv)
-                            #print encrypted_AES_key
-                            #print ciphertext
-                            #print "AES key: " + binascii.hexlify(unencrypted_AES_key) #### YES THIS IS WORKING!
                             plaintext = common.Symmetric_Decrypt(ciphertext, unencrypted_AES_key, iv)
-                            #print "---------start plaintext---------\n" + plaintext + "\n---------end plaintext---------"
+
                             client_nonce          = plaintext[    :  32]
                             client_ListenPort     = plaintext[32  :  34]
                             client_public_key     = plaintext[34  : 485]
                             client_usernamelength = plaintext[485 : 486]
                             client_username       = plaintext[486 : 486+ord(client_usernamelength)]
                             client_password       = plaintext[486+ord(client_usernamelength) : ]
-                            #print "client_nonce: \"" + binascii.hexlify(client_nonce) + "\""
-                            #print "client public key:\n" + client_public_key
-                            #print "client username length: \"" + str(ord(client_usernamelength)) + "\""
-                            #print "client username: \"" + client_username + "\""
-                            #print "client password: \"" + client_password + "\""
+
                             response_message_id = common.Get_Message_ID("login_reply_from_server")
+
                             # verify login message and user/pass
                             data_to_verify = client_message[256 : ]
                             response_nonce = common.Increment_Nonce(client_nonce)
@@ -295,7 +259,7 @@ if __name__ == "__main__":
                                 sock.send(sendData)
                                 print "invalid user/signature sending \"bad\" response"
                                 continue
-                            #print "user+signature verified! more to come!"
+
                             yes_or_no = chr(1)
                             shared_aes  = os.urandom(32)
                             shared_hkey = os.urandom(32)
@@ -305,7 +269,7 @@ if __name__ == "__main__":
                             response_signedHash = common.Get_Signed_Hash(response_superCipherText, serv_pri_key)
                             sendData = "".join([response_message_id, response_signedHash, response_superCipherText])
                             sock.send(sendData)
-                            # username | IP | Port | Public Key | Shared AES key | Shared HKey | Nonce | socket | Listen port
+                            
                             # Check if user was already present in authed_users table
 
                             check_for_duplicate_login(client_username)
@@ -434,12 +398,7 @@ if __name__ == "__main__":
                             update_A1A2_key_exchanged_user_list(recvdA1Username, A2UserDataList[0])
                             print "Done with Key exchange support to clients"
                             continue
-
-                        # ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-                        # THIS IS WHERE ALL THE PROCESSING AND STUFF ACTUALLY HAPPENS
-                        # PROBABLY GOING TO JUST HAND THE SOCK AND DATA OFF TO A HELPER
-                        # TO KEEP THINGS CLEAN
-                except: ################################ commented to see exceptions in detail
+                except:
                 #    # something went wrong, remove the client and close the socket.
                     print "Client " + str(address) + " disconnected."
                     sock.close()

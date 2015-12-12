@@ -1,5 +1,6 @@
 # chat client
 # python 3.5
+# Joseph Ruane + Neeraj Beri
 
 import sys, socket, getopt, select, thread, common, time, os
 from cryptography.hazmat.backends import default_backend
