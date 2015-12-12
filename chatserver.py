@@ -122,7 +122,7 @@ def check_for_duplicate_login(client_username):
     for user in authed_users:
         if user[0] == client_username:
             print "Found duplicate username %s" % client_username
-            print A1A2_key_exchanged_user_list
+            # print A1A2_key_exchanged_user_list
             authed_users.remove(user)
             clients.remove(user[7])
             user[7].close()
